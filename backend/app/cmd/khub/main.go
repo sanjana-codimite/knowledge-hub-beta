@@ -20,78 +20,91 @@ func main() {
 	_ = godotenv.Load()
 	ctx := context.Background()
 
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		dsn = "postgres://postgres:postgres@localhost:5432/knowledge_hub?sslmode=disable"
-	}
+	// --- Validate required env vars (fail fast — no silent fallbacks) ---
+	clientID := mustEnv("GOOGLE_CLIENT_ID")
+	clientSecret := mustEnv("GOOGLE_CLIENT_SECRET")
+	jwtSecret := mustEnv("JWT_SECRET")
 
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		redisAddr = redisAddress(os.Getenv("REDIS_URL"))
-	}
-	redisPassword := os.Getenv("REDIS_PASSWORD")
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		jwtSecret = "change-me-in-production"
-	}
-
-	pg, err := store.NewPostgres(ctx, dsn)
+	// --- PostgreSQL ---
+	pg, err := store.NewPostgres(ctx, store.PostgresConfig{
+		DSN: envOrDefault("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/knowledge_hub?sslmode=disable"),
+	})
 	if err != nil {
-		log.Fatalf("failed to connect postgres: %v", err)
+		log.Fatalf("postgres: %v", err)
 	}
 	defer pg.Close()
+	log.Println("connected to postgres")
 
-	rds, err := store.NewRedisStore(ctx, redisAddr, redisPassword, 0)
+	// --- Redis ---
+	rds, err := store.NewRedisStore(ctx, store.RedisConfig{
+		Addr:     envOrDefault("REDIS_ADDR", "localhost:6379"),
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       0,
+	})
 	if err != nil {
-		log.Fatalf("failed to connect redis: %v", err)
+		log.Fatalf("redis: %v", err)
 	}
 	defer rds.Close()
+	log.Println("connected to redis")
+
+	// --- Dependency injection: repo → service → handler ---
+	userRepo := users.NewRepository(pg)
+	userSvc := users.NewService(userRepo)
 
 	authSvc := authz.NewService(authz.GoogleConfig{
-		ClientID:      firstEnv("GOOGLE_CLIENT_ID", "ClientID"),
-		ClientSecret:  firstEnv("GOOGLE_CLIENT_SECRET", "ClientSecret"),
-		RedirectURL:   firstEnv("GOOGLE_REDIRECT_URL", "http://localhost:8080/web/auth/google/callback"),
-		AllowedDomain: "codimite.com",
+		ClientID:      clientID,
+		ClientSecret:  clientSecret,
+		RedirectURL:   envOrDefault("GOOGLE_REDIRECT_URL", "http://localhost:8080/web/auth/google/callback"),
+		AllowedDomain: "codimiteinterns.com",
 	}, jwtSecret)
 
-	userSvc := users.NewService(pg)
 	app := web.NewApp(web.HandlerConfig{
-		Auth:    authSvc,
-		Store:   pg,
+		AuthSvc: authSvc,
 		Redis:   rds,
 		UserSvc: userSvc,
 	})
 
-	httpAddr := firstEnv("PORT", os.Getenv("APP_PORT"))
-	if httpAddr == "" {
-		httpAddr = ":8080"
-	}
-	if !strings.HasPrefix(httpAddr, ":") {
-		httpAddr = ":" + httpAddr
-	}
-
+	// --- HTTP server ---
+	addr := httpAddr()
 	server := &http.Server{
-		Addr:         httpAddr,
+		Addr:         addr,
 		Handler:      app.Router(),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	fmt.Printf("knowledge-hub backend running on %s\n", httpAddr)
+	fmt.Printf("knowledge-hub listening on %s\n", addr)
 	log.Fatal(server.ListenAndServe())
 }
 
-func firstEnv(name, fallback string) string {
-	if value := os.Getenv(name); value != "" {
-		return value
+// mustEnv reads an env var and exits immediately if it is not set.
+// This ensures misconfigured deployments fail at startup, not mid-request.
+func mustEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		log.Fatalf("required environment variable %q is not set", key)
+	}
+	return v
+}
+
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
 	}
 	return fallback
 }
 
-func redisAddress(redisURL string) string {
-	if redisURL == "" {
-		return "localhost:6379"
+func httpAddr() string {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = os.Getenv("APP_PORT")
 	}
-	return strings.TrimPrefix(strings.TrimPrefix(redisURL, "redis://"), "rediss://")
+	if port == "" {
+		port = "8080"
+	}
+	if !strings.HasPrefix(port, ":") {
+		port = ":" + port
+	}
+	return port
 }

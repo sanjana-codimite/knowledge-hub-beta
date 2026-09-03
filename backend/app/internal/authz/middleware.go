@@ -41,7 +41,7 @@ func (m *Middleware) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		userID, err := m.redis.GetUserIDByOpaqueToken(r.Context(), token)
+		userID, err := m.redis.getUserIDByOpaqueToken(r.Context(), token)
 		if err != nil {
 			writeJSONError(w, http.StatusUnauthorized, "invalid or expired access token")
 			return

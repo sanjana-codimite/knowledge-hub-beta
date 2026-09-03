@@ -36,7 +36,7 @@ func NewHandler(authSvc *Service, redis *store.RedisStore, userSvc *users.Servic
 func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	state := uuid.NewString()
 
-	if err := h.redis.SaveOAuthState(r.Context(), state, 10*time.Minute); err != nil {
+	if err := h.redis.saveOAuthState(r.Context(), state, 10*time.Minute); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "could not initiate login")
 		return
 	}
@@ -57,7 +57,7 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "missing oauth state")
 		return
 	}
-	if err := h.redis.ConsumeOAuthState(r.Context(), state); err != nil {
+	if err := h.redis.consumeOAuthState(r.Context(), state); err != nil {
 		writeJSONError(w, http.StatusUnauthorized, "invalid or expired oauth state")
 		return
 	}
@@ -127,7 +127,7 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 7. Save opaque token in Redis with the correct TTL
-	if err := h.redis.SaveOpaqueToken(
+	if err := h.redis.saveOpaqueToken(
 		r.Context(),
 		tokens.AccessToken,
 		user.ID,
@@ -174,7 +174,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.redis.SaveOpaqueToken(
+	if err := h.redis.saveOpaqueToken(
 		r.Context(),
 		tokens.AccessToken,
 		user.ID,
@@ -194,7 +194,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	token := extractBearerToken(r)
 	if token != "" {
-		_ = h.redis.DeleteOpaqueToken(r.Context(), token)
+		_ = h.redis.deleteOpaqueToken(r.Context(), token)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

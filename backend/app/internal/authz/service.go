@@ -59,7 +59,11 @@ func (s *Service) AccessTokenTTL() time.Duration {
 
 // LoginURL returns the Google OAuth2 consent-screen URL for the given state value.
 func (s *Service) LoginURL(state string) string {
-	return s.oauth.AuthCodeURL(state)
+	return s.oauth.AuthCodeURL(
+		state,
+		oauth2.AccessTypeOnline,
+		oauth2.SetAuthURLParam("hd", s.config.AllowedDomain),
+	)
 }
 
 // Exchange exchanges a Google authorization code for an OAuth2 token.

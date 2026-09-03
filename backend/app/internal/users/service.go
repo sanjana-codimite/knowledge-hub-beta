@@ -3,64 +3,44 @@ package users
 import (
 	"context"
 	"fmt"
+	"strings"
 
-	"github.com/codimite-learning/knowledge-hub/internal/pkg/store"
 	"github.com/codimite-learning/knowledge-hub/internal/pkg/types"
-	"github.com/google/uuid"
 )
 
-// Service manages users and project metadata.
 type Service struct {
-	DB *store.Postgres
+	repo Repository // interface, not a concrete type
 }
 
-// NewService creates a users service.
-func NewService(db *store.Postgres) *Service {
-	return &Service{DB: db}
+func NewService(repo Repository) *Service {
+	return &Service{repo: repo}
 }
 
-// CreateOrUpdateFromGoogle stores or updates a user that has signed in with Google.
-func (s *Service) CreateOrUpdateFromGoogle(ctx context.Context, email, name, picture string) (*types.User, error) {
+func (s *Service) UpsertFromGoogle(
+	ctx context.Context,
+	sub, email, name, picture string,
+) (*types.User, error) {
+
+	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
-		return nil, fmt.Errorf("email is required")
+		return nil, fmt.Errorf("users: email must not be empty")
+	}
+	if sub == "" {
+		return nil, fmt.Errorf("users: google sub must not be empty")
 	}
 
-	user := types.User{
-		ID:       uuid.NewString(),
-		Email:    email,
-		Name:     name,
-		Picture:  picture,
-		Role:     "user",
-		Provider: "google",
+	user, err := s.repo.UpsertFromGoogle(ctx, sub, email, name, picture)
+	if err != nil {
+		return nil, fmt.Errorf("users: upsert from google: %w", err)
 	}
 
-	if existing, err := s.DB.GetUserByEmail(ctx, email); err == nil && existing != nil {
-		user = *existing
-		user.Name = name
-		user.Picture = picture
-	}
-
-	if err := s.DB.CreateUser(ctx, user); err != nil {
-		return nil, err
-	}
-
-	return &user, nil
+	return user, nil
 }
 
-// ListProjects returns projects for the UI dashboard.
-func (s *Service) ListProjects(ctx context.Context) ([]types.Project, error) {
-	return s.DB.ListProjects(ctx)
-}
-
-// CreateProject creates a new project.
-func (s *Service) CreateProject(ctx context.Context, name, description string) (*types.Project, error) {
-	project := types.Project{
-		ID:          uuid.NewString(),
-		Name:        name,
-		Description: description,
+func (s *Service) GetByID(ctx context.Context, id string) (*types.User, error) {
+	user, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("users: get by id: %w", err)
 	}
-	if err := s.DB.CreateProject(ctx, project); err != nil {
-		return nil, err
-	}
-	return &project, nil
+	return user, nil
 }

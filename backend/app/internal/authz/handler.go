@@ -20,16 +20,17 @@ type Handler struct {
 	userSvc *users.Service
 }
 
+// NewHandler constructs a Handler with all dependencies injected.
 func NewHandler(authSvc *Service, redis *store.RedisStore, userSvc *users.Service) *Handler {
-    return &Handler{
-        authSvc: authSvc,
-        redis:   newRedisRepository(redis),  // ← wrap on construction
-        userSvc: userSvc,
-    }
+	return &Handler{
+		authSvc: authSvc,
+		redis:   newRedisRepository(redis),
+		userSvc: userSvc,
+	}
 }
 
 // GoogleLogin starts the OAuth2 flow.
-// It generates a random CSRF state value, saves it in Redis for 10 minutes,
+// Generates a CSRF state, saves it in Redis for 10 minutes,
 // then redirects the browser to Google's consent screen.
 //
 // GET /web/auth/google/login
@@ -45,9 +46,16 @@ func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 // GoogleCallback handles the redirect back from Google after the user consents.
-// It validates the CSRF state, exchanges the code for tokens, fetches the
-// user's profile, enforces the codimite.com domain rule, upserts the user,
-// and returns access + refresh tokens.
+//
+// Flow:
+//  1. Validate CSRF state against Redis
+//  2. Exchange authorization code for Google OAuth token
+//  3. Fetch user profile from Google userinfo endpoint
+//  4. Enforce codimiteinterns.com domain restriction
+//  5. Upsert user in Postgres (always role = 'user')
+//  6. Issue opaque access token + JWT refresh token
+//  7. Save opaque token in Redis
+//  8. Return JSON — the frontend popup reads this directly
 //
 // GET /web/auth/google/callback
 func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +70,7 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Exchange code for Google token
+	// 2. Exchange authorization code for Google token
 	code := r.URL.Query().Get("code")
 	if code == "" {
 		writeJSONError(w, http.StatusBadRequest, "missing authorization code")
@@ -75,7 +83,7 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Fetch user profile from Google
+	// 3. Fetch user profile from Google userinfo endpoint
 	client := h.authSvc.oauth.Client(r.Context(), googleToken)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
@@ -96,13 +104,13 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 4. Enforce domain restriction — only codimite.com users may log in
+	// 4. Enforce domain restriction — only codimiteinterns.com users may log in
 	if !profile.VerifiedEmail {
 		writeJSONError(w, http.StatusForbidden, "google email is not verified")
 		return
 	}
 	if !h.authSvc.IsAllowedEmail(profile.Email) {
-		writeJSONError(w, http.StatusForbidden, "only codimite.com accounts are allowed")
+		writeJSONError(w, http.StatusForbidden, "only codimiteinterns.com accounts are allowed")
 		return
 	}
 
@@ -137,6 +145,9 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 8. Return plain JSON.
+	// The Vite proxy keeps the popup on the same origin (localhost:5173)
+	// so the frontend can read popup.document.body.innerText directly.
 	writeJSON(w, http.StatusOK, map[string]any{
 		"user":   user,
 		"tokens": tokens,
@@ -188,7 +199,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 }
 
 // Logout deletes the opaque access token from Redis immediately.
-// The refresh JWT will expire on its own schedule.
+// The refresh JWT expires naturally on its own schedule.
 //
 // POST /web/auth/logout
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
@@ -199,9 +210,9 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Me returns the authenticated user's profile from the request context.
-// The AuthContext was attached by the RequireAuth middleware so no extra
-// DB or Redis call is needed here.
+// Me returns the authenticated user's profile.
+// AuthContext is already attached by RequireAuth middleware —
+// no extra DB or Redis call needed.
 //
 // GET /web/auth/me
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {

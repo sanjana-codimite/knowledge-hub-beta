@@ -18,6 +18,7 @@ import (
 
 func main() {
 	_ = godotenv.Load()
+	log.Println("DATABASE_URL =", os.Getenv("DATABASE_URL")) // temporary debug
 	ctx := context.Background()
 
 	// --- Validate required env vars (fail fast — no silent fallbacks) ---

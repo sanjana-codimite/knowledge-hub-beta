@@ -1,24 +1,11 @@
+// backend/web/embedded.go
 package web
 
 import (
-    "embed"
-    "io/fs"
-
     "github.com/codimite-learning/knowledge-hub/internal/authz"
     "github.com/codimite-learning/knowledge-hub/internal/pkg/store"
     "github.com/codimite-learning/knowledge-hub/internal/users"
 )
-
-//go:embed static/*
-var staticFiles embed.FS
-
-var frontendFS = func() fs.FS {
-    f, err := fs.Sub(staticFiles, "static")
-    if err != nil {
-        panic(err)
-    }
-    return f
-}()
 
 type HandlerConfig struct {
     AuthSvc *authz.Service

@@ -6,3 +6,4 @@
   button, input, textarea { font: inherit; }
   button { color: inherit; }
   --accent-bg: rgba(170, 59, 255, 0.1);
+}

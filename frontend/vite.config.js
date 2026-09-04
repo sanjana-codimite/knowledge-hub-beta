@@ -3,13 +3,12 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    port: 5173,
-    build: {
-    // Output the build directly into the Go embed folder
-    outDir: "../backend/app/web/dist",
+  build: {
+    outDir: "../backend/app/web/static",
     emptyOutDir: true,
   },
+  server: {
+    port: 5173,
     proxy: {
       // Forwards all /web/* requests to the Go backend.
       // This means the browser always sees one origin (localhost:5173)

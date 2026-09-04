@@ -5,6 +5,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    build: {
+    // Output the build directly into the Go embed folder
+    outDir: "../backend/app/web/dist",
+    emptyOutDir: true,
+  },
     proxy: {
       // Forwards all /web/* requests to the Go backend.
       // This means the browser always sees one origin (localhost:5173)

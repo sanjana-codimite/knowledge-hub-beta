@@ -1,9 +1,27 @@
 :root {
   --text: #6b6375;
-  :root { font-family: 'DM Sans', 'Segoe UI', sans-serif; color: #eef0ff; background: #070812; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
-  * { box-sizing: border-box; }
-  body { margin: 0; min-width: 320px; }
-  button, input, textarea { font: inherit; }
-  button { color: inherit; }
+  :root {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
+    color: #eef0ff;
+    background: #070812;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    min-width: 320px;
+  }
+  button,
+  input,
+  textarea {
+    font: inherit;
+  }
+  button {
+    color: inherit;
+  }
   --accent-bg: rgba(170, 59, 255, 0.1);
 }

@@ -1,5 +1,7 @@
 // LoginScreen is shown when no session exists.
 // It renders the two-column layout: marketing intro + Google sign-in card.
+import { FcGoogle } from "react-icons/fc";
+
 export function LoginScreen({ onSignIn, busy, error }) {
   return (
     <div className="login-screen">
@@ -35,23 +37,23 @@ export function LoginScreen({ onSignIn, busy, error }) {
         </section>
 
         <section className="login-card">
-          <span className="eyebrow">WORKSPACE ACCESS</span>
+          {/* <span className="eyebrow">WORKSPACE ACCESS</span> */}
           <h2>Sign in</h2>
-          <p>Use your work Google account to enter Atlas.</p>
+          <p>Use your work Google account. Access follows your existing project groups.</p>
           <button
             className="google-button"
             onClick={onSignIn}
             disabled={busy}
           >
-            <span className="google-g">G</span>
+            <FcGoogle className="google-icon" aria-hidden="true" />
             {busy ? "Waiting for Google..." : "Continue with Google"}
           </button>
           {error && <div className="error-message">{error}</div>}
           <div className="secure-note">
-            <span className="online" /> Your access is protected by Google SSO.
+            <span className="online" />Drive stays read-only until you choose folders to sync.
           </div>
           <small className="policy">
-            Only verified Codimite workspace accounts can access the hub.
+            By continuing you agree to the internal usage policy. Trouble signing in? Ask IT.
           </small>
         </section>
       </div>

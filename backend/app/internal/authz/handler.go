@@ -39,6 +39,7 @@ func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.redis.saveOAuthState(r.Context(), state, 10*time.Minute); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "could not initiate login")
+		
 		return
 	}
 

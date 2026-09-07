@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { API, request } from "../api/request";
 
 const SESSION_KEY = "atlas.session";
-const POPUP_TIMEOUT_MS = 120_000; // 2 minutes
-
+const POPUP_TIMEOUT_MS = 120_000; 
 // useAuth manages the full authentication lifecycle:
 //   - Loading/persisting the session from localStorage
 //   - Fetching the user profile on mount

@@ -48,6 +48,9 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}
       JWT_SECRET: ${JWT_SECRET}
+      UPLOAD_DIR: /app/storage/uploads
+    volumes:
+      - ./storage/uploads:/app/storage/uploads
     depends_on:
       postgres:
         condition: service_healthy

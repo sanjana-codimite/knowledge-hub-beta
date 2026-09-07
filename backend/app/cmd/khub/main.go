@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/codimite-learning/knowledge-hub/internal/authz"
+	"github.com/codimite-learning/knowledge-hub/internal/documents"
 	"github.com/codimite-learning/knowledge-hub/internal/pkg/store"
+	"github.com/codimite-learning/knowledge-hub/internal/projects"
 	"github.com/codimite-learning/knowledge-hub/internal/users"
 	"github.com/codimite-learning/knowledge-hub/web"
 	"github.com/joho/godotenv"
@@ -18,13 +20,13 @@ import (
 
 func main() {
 	_ = godotenv.Load()
-	log.Println("DATABASE_URL =", os.Getenv("DATABASE_URL")) // temporary debug
 	ctx := context.Background()
 
 	// --- Validate required env vars (fail fast — no silent fallbacks) ---
 	clientID := mustEnv("GOOGLE_CLIENT_ID")
 	clientSecret := mustEnv("GOOGLE_CLIENT_SECRET")
 	jwtSecret := mustEnv("JWT_SECRET")
+	uploadDir    := envOrDefault("UPLOAD_DIR", "./storage/uploads")
 
 	// --- PostgreSQL ---
 	pg, err := store.NewPostgres(ctx, store.PostgresConfig{
@@ -51,6 +53,11 @@ func main() {
 	// --- Dependency injection: repo → service → handler ---
 	userRepo := users.NewRepository(pg)
 	userSvc := users.NewService(userRepo)
+	projectRepo := projects.NewRepository(pg)
+	projectSvc := projects.NewService(projectRepo)
+	 
+	docRepo := documents.NewRepository(pg) 
+	docSvc := documents.NewService(docRepo, uploadDir)	
 
 	authSvc := authz.NewService(authz.GoogleConfig{
 		ClientID:      clientID,
@@ -63,6 +70,8 @@ func main() {
 		AuthSvc: authSvc,
 		Redis:   rds,
 		UserSvc: userSvc,
+		ProjectSvc: projectSvc,
+		DocSvc: docSvc,
 	})
 
 	// --- HTTP server ---

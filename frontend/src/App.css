@@ -813,6 +813,137 @@ textarea:focus-visible {
   background: linear-gradient(145deg, #fff, #dfe2ef);
   color: #141629;
 }
+.upload-modal {
+  padding-top: 8px;
+}
+.upload-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  justify-content: space-between;
+}
+.upload-heading h2 {
+  margin-top: 0;
+}
+.upload-heading p {
+  max-width: 42ch;
+  margin-bottom: 0;
+}
+.upload-status {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  margin-top: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 10px var(--green);
+}
+.upload-dropzone {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 172px;
+  margin-top: 22px;
+  padding: 28px 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.26);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+.upload-dropzone:hover,
+.upload-dropzone.is-dragging {
+  border-color: rgba(169, 180, 255, 0.7);
+  background: rgba(169, 180, 255, 0.1);
+  transform: translateY(-1px);
+}
+.upload-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.upload-icon {
+  color: var(--violet);
+  font-size: 27px;
+  line-height: 1;
+}
+.upload-dropzone strong {
+  font-size: 14px;
+}
+.upload-dropzone > span:last-child {
+  max-width: 34ch;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.upload-field-label {
+  display: block;
+  margin: 17px 0 8px;
+  color: rgba(238, 240, 255, 0.48);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.project-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.project-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(238, 240, 255, 0.72);
+  font-size: 12.5px;
+}
+.project-chip.active {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--ink);
+}
+.project-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--violet);
+  box-shadow: 0 0 7px currentColor;
+}
+.project-chip-dot-payments { background: var(--cyan); }
+.project-chip-dot-people { background: #ff6aa8; }
+.project-chip-dot-design { background: var(--orange); }
+.upload-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+.upload-actions .primary-action,
+.secondary-action {
+  width: auto;
+  height: 42px;
+  margin-top: 0;
+  padding: 0 19px;
+  border-radius: 14px;
+}
+.secondary-action {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.upload-actions .primary-action:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
 @media (max-width: 850px) {
   .topbar {
     gap: 8px;

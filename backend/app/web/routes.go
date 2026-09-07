@@ -16,6 +16,67 @@ func (a *App) Router() *http.ServeMux {
 	mux.HandleFunc("/web/auth/logout", a.authMW.RequireAuth(a.authHandler.Logout))
 	mux.HandleFunc("/web/auth/me", a.authMW.RequireAuth(a.authHandler.Me))
 
+	mux.HandleFunc("/web/projects", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			a.projectHandler.Create(w, r)
+		case http.MethodGet:
+			a.projectHandler.List(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+
+	mux.HandleFunc("/web/documents/upload", a.authMW.RequireAuth(a.docHandler.Upload))
+	mux.HandleFunc("/web/documents/mine",   a.authMW.RequireAuth(a.docHandler.ListMine))
+	mux.HandleFunc("/web/documents/review", a.authMW.RequireAuth(a.docHandler.ListForReview))
+	mux.HandleFunc("/web/documents", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			a.docHandler.ListAll(w, r)
+			return
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}))
+
+	mux.HandleFunc("/web/documents/", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		switch {
+		case strings.HasSuffix(path, "/reviewer") && r.Method == http.MethodPatch:
+			a.docHandler.AssignReviewer(w, r)
+		case strings.HasSuffix(path, "/approve") && r.Method == http.MethodPatch:
+			a.docHandler.Approve(w, r)
+		case strings.HasSuffix(path, "/reject") && r.Method == http.MethodPatch:
+			a.docHandler.Reject(w, r)
+		case strings.HasSuffix(path, "/tags") && r.Method == http.MethodPost:
+			a.docHandler.AddTagsToDocument(w, r)
+		case strings.HasSuffix(path, "/file") && r.Method == http.MethodGet:
+			a.docHandler.GetFile(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+
+
+	mux.HandleFunc("/web/tags", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			a.docHandler.CreateTag(w, r)
+		case http.MethodGet:
+			a.docHandler.ListTags(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/web/users", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			a.docHandler.ListUsers(w, r)
+			return
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}))
+	
 	mux.Handle("/", spaHandler(frontendFS))
 
 	return mux

@@ -11,11 +11,11 @@ import (
 	"github.com/codimite-learning/knowledge-hub/internal/users"
 )
 
-//go:embed static
+//go:embed dist
 var distFS embed.FS
 
 var frontendFS = func() fs.FS {
-	f, err := fs.Sub(distFS, "static")
+	f, err := fs.Sub(distFS, "dist")
 	if err != nil {
 		panic(err)
 	}

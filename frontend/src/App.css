@@ -686,10 +686,34 @@ textarea:focus-visible {
   bottom: 0;
   width: min(560px, 100%);
   overflow-y: auto;
-  padding: clamp(22px, 4vw, 36px);
+  padding: clamp(18px, 3vw, 30px);
   border-left: 1px solid var(--line);
-  background: linear-gradient(180deg, #1a1c35, #0d0e1d);
+  background: linear-gradient(180deg, rgba(22, 24, 44, 0.92), rgba(12, 13, 26, 0.96));
+  backdrop-filter: blur(34px) saturate(180%);
   box-shadow: -30px 0 80px rgba(0, 0, 0, 0.55);
+}
+.modal-layer {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow-y: auto;
+  background: rgba(4, 5, 12, .6);
+  backdrop-filter: blur(8px);
+}
+.detail-panel.modal-panel {
+  position: relative;
+  inset: auto;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: clamp(20px, 3vw, 30px);
+  border: 1px solid rgba(255, 255, 255, .17);
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, .14), rgba(255, 255, 255, .05));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 34px 80px rgba(0, 0, 0, .6);
+}
+.modal-panel .close-button {
+  display: none;
 }
 .close-button {
   float: right;
@@ -698,11 +722,21 @@ textarea:focus-visible {
   border: 1px solid var(--line);
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.08);
-  font-size: 22px;
+  font-size: 18px;
+  transition: background .18s ease, transform .18s ease;
+}
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: rotate(4deg);
+}
+.panel-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
 }
 .panel-kicker {
   display: inline-block;
-  margin-left: 9px;
   color: var(--muted);
   font:
     11.5px "DM Mono",
@@ -710,11 +744,12 @@ textarea:focus-visible {
 }
 .detail-panel h2 {
   clear: both;
-  margin: 26px 0 10px;
-  font-size: 27px;
+  margin: 16px 42px 10px 0;
+  font-size: clamp(20px, 3vw, 26px);
   line-height: 1.25;
 }
 .detail-panel > p {
+  margin: 0;
   color: var(--muted);
   font-size: 14px;
   line-height: 1.65;
@@ -734,6 +769,18 @@ textarea:focus-visible {
   background: rgba(255, 255, 255, 0.08);
   font-size: 13px;
   font-weight: 600;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.panel-actions button:hover,
+.reply button:hover {
+  border-color: rgba(255, 255, 255, .28);
+  background: rgba(255, 255, 255, .15);
+  transform: translateY(-1px);
+}
+.panel-actions .warning-action {
+  border-color: rgba(255, 176, 88, .4);
+  background: rgba(255, 176, 88, .16);
+  color: #ffcf94;
 }
 .detail-panel h3 {
   margin-top: 30px;
@@ -749,9 +796,10 @@ textarea:focus-visible {
 .history > div {
   display: flex;
   gap: 12px;
+  align-items: flex-start;
   padding: 13px 15px;
   border: 1px solid var(--line);
-  border-radius: 15px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.06);
 }
 .history b {
@@ -771,12 +819,40 @@ textarea:focus-visible {
     11px "DM Mono",
     monospace;
 }
+.history em {
+  margin-left: auto;
+  align-self: center;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-style: normal;
+  white-space: nowrap;
+}
+.linked-items {
+  display: grid;
+  gap: 8px;
+}
+.linked-items > div {
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .06);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.linked-items small,
+.answer small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font: 11.5px "DM Mono", monospace;
+}
 .answer {
   margin-top: 22px;
-  padding: 17px;
+  padding: 18px;
   border: 1px solid rgba(95, 227, 161, 0.3);
-  border-radius: 17px;
-  background: rgba(95, 227, 161, 0.1);
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(95, 227, 161, .16), rgba(255, 255, 255, .04));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .24);
 }
 .answer b {
   color: #8ff0c0;
@@ -798,6 +874,11 @@ textarea:focus-visible {
   background: rgba(255, 255, 255, 0.07);
   color: var(--ink);
 }
+.reply input::placeholder,
+.panel-input::placeholder,
+.detail-panel textarea::placeholder {
+  color: rgba(238, 240, 255, .42);
+}
 .reply input,
 .panel-input {
   height: 44px;
@@ -815,6 +896,26 @@ textarea:focus-visible {
 }
 .upload-modal {
   padding-top: 8px;
+}
+.form-panel {
+  padding-top: 8px;
+}
+.form-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.form-heading h2 {
+  margin-right: 0;
+}
+.form-note {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
 }
 .upload-heading {
   display: flex;
@@ -852,6 +953,21 @@ textarea:focus-visible {
   text-align: center;
   cursor: pointer;
   transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+.modal-panel .upload-dropzone {
+  min-height: 145px;
+  margin-top: 18px;
+  padding: 28px 20px;
+}
+.modal-panel #source-link {
+  margin-top: 12px;
+}
+.modal-panel .project-chips {
+  margin-top: 12px;
+}
+.modal-panel .project-chip {
+  height: 34px;
+  padding: 0 14px;
 }
 .upload-dropzone:hover,
 .upload-dropzone.is-dragging {

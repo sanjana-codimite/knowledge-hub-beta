@@ -7,13 +7,14 @@ import { Status } from "./Status";
 //   - "ask"    — ask the team form
 //   - "upload" — add a source form
 export function Panel({ data, close }) {
-  const isDoc    = Boolean(data.type);
-  const isThread = data.title && !isDoc;
+  const isDoc = Boolean(data.type);
+  const isThread = Boolean(data.title) && !isDoc;
+  const isModal = !isDoc && !isThread;
 
   return (
-    <div className="panel-layer" onClick={close}>
-      <section className="detail-panel" onClick={(e) => e.stopPropagation()}>
-        <button className="close-button" onClick={close}>×</button>
+    <div className={`panel-layer${isModal ? " modal-layer" : ""}`} onClick={close}>
+      <section className={`detail-panel${isModal ? " modal-panel" : ""}`} onClick={(e) => e.stopPropagation()}>
+        <button className="close-button" onClick={close} aria-label="Close panel">×</button>
 
         {isDoc && <DocPanel doc={data} />}
         {isThread && <ThreadPanel thread={data} />}
@@ -24,31 +25,42 @@ export function Panel({ data, close }) {
 }
 
 function DocPanel({ doc }) {
+  const versions = doc.versions || [
+    { version: "v4.2", note: "Added the latest operational guidance", author: "Nadia R.", date: "12 Aug 2026", tag: "current" },
+    { version: "v4.1", note: "Escalation ladder updated", author: "Tom B.", date: "27 Jun 2026", tag: "" },
+  ];
+
   return (
     <>
-      <Status label={doc.status} />
-      <span className="panel-kicker">{doc.type} · {doc.project}</span>
+      <div className="panel-meta-row">
+        <Status label={doc.status} />
+        <span className="panel-kicker">{doc.type} · {doc.project}</span>
+      </div>
       <h2>{doc.title}</h2>
       <p>{doc.excerpt}</p>
       <div className="panel-actions">
-        <button>Mark as outdated</button>
+        <button className="warning-action">Mark as outdated</button>
         <button>Open source</button>
+        <button>Ask about this</button>
       </div>
       <h3>Version history</h3>
       <div className="history">
+        {versions.map((version) => (
+          <div key={`${version.version}-${version.date}`}>
+            <b>{version.version}</b>
+            <span>
+              {version.note}
+              <small>{version.author} · {version.date}</small>
+            </span>
+            {version.tag && <em>{version.tag}</em>}
+          </div>
+        ))}
+      </div>
+      <h3>Linked threads</h3>
+      <div className="linked-items">
         <div>
-          <b>v4.2</b>
-          <span>
-            Added the latest operational guidance
-            <small>Nadia R. · 12 Aug 2026</small>
-          </span>
-        </div>
-        <div>
-          <b>v4.1</b>
-          <span>
-            Escalation ladder updated
-            <small>Tom B. · 27 Jun 2026</small>
-          </span>
+          Why do payouts stall at &apos;pending_capture&apos;?
+          <small>answered · 6 replies</small>
         </div>
       </div>
     </>
@@ -56,23 +68,23 @@ function DocPanel({ doc }) {
 }
 
 function ThreadPanel({ thread }) {
+  const answer = thread.answer || "Replay the pending work using the current runbook. Anything older than the supported window needs a manual review in the provider console.";
+
   return (
     <>
-      <Status label={thread.status} />
-      <span className="panel-kicker">Thread · {thread.project}</span>
+      <div className="panel-meta-row">
+        <Status label={thread.status} />
+        <span className="panel-kicker">Thread · {thread.project}</span>
+      </div>
       <h2>{thread.title}</h2>
       <span className="mono">{thread.meta}</span>
-      <p>
-        {thread.preview} The team is collecting the confirmed answer here so it
-        can be found again later.
-      </p>
+      <p>{thread.preview} The team is collecting the confirmed answer here so it can be found again later.</p>
       <div className="answer">
         <b>✓ Accepted answer</b>
-        <p>
-          Replay the pending work using the current runbook. Anything older than
-          the supported window needs a manual review in the provider console.
-        </p>
+        <p>{answer}</p>
+        <small>Nadia R. · accepted by Tom B. · 12 upvotes</small>
       </div>
+      <h3>Replies</h3>
       <div className="reply">
         <input placeholder="Write an answer..." />
         <button>Post</button>
@@ -87,25 +99,28 @@ function FormPanel({ type, close }) {
   if (!isAsk) return <UploadPanel close={close} />;
 
   return (
-    <>
-      <h2>{isAsk ? "Ask the team" : "Add to the hub"}</h2>
+    <div className="form-panel">
+      <div className="form-heading">
+        <h2>Ask the team</h2>
+        <span className="upload-status" aria-label="Ask service ready" />
+      </div>
       <p>
-        Share a question or source with the team and keep the knowledge
-        searchable.
+        Once an answer is accepted, the thread becomes searchable alongside the docs.
       </p>
       <input
         className="panel-input"
-        placeholder={
-          isAsk
-            ? "Question — e.g. Why do payouts stall?"
-            : "Paste a document URL..."
-        }
+        placeholder="Question - e.g. Why do payouts stall at 'pending_capture'?"
       />
-      <textarea placeholder="Add context..." rows="5" />
-      <button className="primary-action" onClick={close}>
-        Post question
-      </button>
-    </>
+      <textarea placeholder="Add context: what you tried, error messages, which environment..." rows="5" />
+      <div className="upload-field-label">Project</div>
+      <div className="project-chips">
+        {['Platform', 'Payments', 'People', 'Design'].map((name) => (
+          <button className="project-chip" key={name} type="button">{name}</button>
+        ))}
+      </div>
+      <div className="form-note"><span className="online" /> 3 docs look related - they&apos;ll be suggested to responders.</div>
+      <button className="primary-action" onClick={close}>Post to Platform</button>
+    </div>
   );
 }
 
@@ -124,9 +139,8 @@ function UploadPanel({ close }) {
       <div className="upload-heading">
         <div>
           <h2>Add to the hub</h2>
-          <p>Upload files or paste a link. We index the text and tag it to a project.</p>
+          <p>Upload files or paste a link - Medium, dev.to and Drive URLs are indexed automatically.</p>
         </div>
-        <span className="upload-status" aria-label="Upload service ready" />
       </div>
 
       <label
@@ -154,7 +168,6 @@ function UploadPanel({ close }) {
         <span>{files.length ? files.map((file) => file.name).join(", ") : "or click to browse - up to 50 MB each"}</span>
       </label>
 
-      <label className="upload-field-label" htmlFor="source-link">Or add a source link</label>
       <input
         id="source-link"
         className="panel-input"
@@ -164,7 +177,6 @@ function UploadPanel({ close }) {
         type="url"
       />
 
-      <div className="upload-field-label">Project</div>
       <div className="project-chips" role="group" aria-label="Choose a project">
         {["Platform", "Payments", "People", "Design"].map((name) => (
           <button
@@ -173,7 +185,6 @@ function UploadPanel({ close }) {
             type="button"
             onClick={() => setProject(name)}
           >
-            <span className={`project-chip-dot project-chip-dot-${name.toLowerCase()}`} />
             {name}
           </button>
         ))}

@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Status } from "./Status";
+import { request, uploadDocument } from "../api/request";
 
 // Panel is the slide-over detail panel. It handles four content types:
 //   - A document (has doc.type)
 //   - A thread (has thread.title, no type)
 //   - "ask"    — ask the team form
 //   - "upload" — add a source form
-export function Panel({ data, close }) {
+export function Panel({ data, close, session, onSession }) {
   const isDoc = Boolean(data.type);
   const isThread = Boolean(data.title) && !isDoc;
   const isModal = !isDoc && !isThread;
@@ -18,7 +19,9 @@ export function Panel({ data, close }) {
 
         {isDoc && <DocPanel doc={data} />}
         {isThread && <ThreadPanel thread={data} />}
-        {!isDoc && !isThread && <FormPanel type={data} close={close} />}
+        {!isDoc && !isThread && (
+          <FormPanel type={data} close={close} session={session} onSession={onSession} />
+        )}
       </section>
     </div>
   );
@@ -93,10 +96,10 @@ function ThreadPanel({ thread }) {
   );
 }
 
-function FormPanel({ type, close }) {
+function FormPanel({ type, close, session, onSession }) {
   const isAsk = type === "ask";
 
-  if (!isAsk) return <UploadPanel close={close} />;
+  if (!isAsk) return <UploadPanel close={close} session={session} onSession={onSession} />;
 
   return (
     <div className="form-panel">
@@ -124,14 +127,91 @@ function FormPanel({ type, close }) {
   );
 }
 
-function UploadPanel({ close }) {
+function UploadPanel({ close, session, onSession }) {
   const [files, setFiles] = useState([]);
   const [link, setLink] = useState("");
-  const [project, setProject] = useState("Platform");
+  const [projects, setProjects] = useState([]);
+  const [projectId, setProjectId] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    request("/web/projects", {}, session, onSession)
+      .then((items) => {
+        if (!active) return;
+        const availableProjects = Array.isArray(items) ? items : [];
+        setProjects(availableProjects);
+        setProjectId(availableProjects[0]?.id || "");
+        if (!availableProjects.length) {
+          setError("No projects are available. Create a project before uploading a document.");
+        }
+      })
+      .catch((reason) => {
+        if (active) setError(reason.message || "Could not load projects.");
+      });
+    return () => { active = false; };
+  }, [session]);
 
   const addFiles = (incoming) => {
+    setError("");
     setFiles(Array.from(incoming));
+  };
+
+  const submitUpload = async () => {
+    if (!files.length || !projectId || uploading) return;
+    setUploading(true);
+    setError("");
+
+    try {
+      for (const file of files) {
+        await uploadDocument(file, { project_id: projectId }, session, onSession);
+      }
+      close();
+    } catch (reason) {
+      setError(reason.message || "Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const createProject = async (event) => {
+    event.preventDefault();
+    const name = projectName.trim();
+    if (!name || creatingProject) return;
+
+    setCreatingProject(true);
+    setError("");
+    try {
+      const created = await request(
+        "/web/projects",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name,
+            description: projectDescription.trim(),
+          }),
+        },
+        session,
+        onSession
+      );
+
+      if (!created?.id) throw new Error("Project was created without an id.");
+      setProjects((current) => [...current, created]);
+      setProjectId(created.id);
+      setProjectName("");
+      setProjectDescription("");
+      setShowCreateProject(false);
+    } catch (reason) {
+      setError(reason.message || "Could not create project.");
+    } finally {
+      setCreatingProject(false);
+    }
   };
 
   return (
@@ -139,7 +219,7 @@ function UploadPanel({ close }) {
       <div className="upload-heading">
         <div>
           <h2>Add to the hub</h2>
-          <p>Upload files or paste a link - Medium, dev.to and Drive URLs are indexed automatically.</p>
+          <p>Upload files and tag them to a project. Files are saved to the knowledge hub for review.</p>
         </div>
       </div>
 
@@ -173,29 +253,67 @@ function UploadPanel({ close }) {
         className="panel-input"
         value={link}
         onChange={(event) => setLink(event.target.value)}
-        placeholder="https://medium.com/@team/post..."
+          placeholder="Source link (not supported for file upload yet)"
         type="url"
       />
 
+      <div className="project-picker-heading">
+        <span>Project</span>
+        <button
+          className="create-project-button"
+          type="button"
+          onClick={() => {
+            setError("");
+            setShowCreateProject((visible) => !visible);
+          }}
+        >
+          {showCreateProject ? "Cancel" : "+ New project"}
+        </button>
+      </div>
+
+      {showCreateProject && (
+        <form className="create-project-form" onSubmit={createProject}>
+          <input
+            className="panel-input"
+            value={projectName}
+            onChange={(event) => setProjectName(event.target.value)}
+            placeholder="Project name"
+            maxLength={120}
+            autoFocus
+          />
+          <input
+            className="panel-input"
+            value={projectDescription}
+            onChange={(event) => setProjectDescription(event.target.value)}
+            placeholder="Description (optional)"
+            maxLength={240}
+          />
+          <button className="secondary-action create-project-submit" type="submit" disabled={!projectName.trim() || creatingProject}>
+            {creatingProject ? "Creating..." : "Create project"}
+          </button>
+        </form>
+      )}
+
       <div className="project-chips" role="group" aria-label="Choose a project">
-        {["Platform", "Payments", "People", "Design"].map((name) => (
+        {projects.map((project) => (
           <button
-            className={`project-chip${project === name ? " active" : ""}`}
-            key={name}
+            className={`project-chip${project.id === projectId ? " active" : ""}`}
+            key={project.id}
             type="button"
-            onClick={() => setProject(name)}
+            onClick={() => setProjectId(project.id)}
           >
-            {name}
+            {project.name}
           </button>
         ))}
       </div>
 
       <div className="upload-actions">
         <button className="secondary-action" onClick={close}>Cancel</button>
-        <button className="primary-action" onClick={close} disabled={!files.length && !link.trim()}>
-          Add to {project}
+        <button className="primary-action" onClick={submitUpload} disabled={!files.length || !projectId || uploading}>
+          {uploading ? "Uploading..." : `Add to ${projects.find((project) => project.id === projectId)?.name || "project"}`}
         </button>
       </div>
+      {error && <div className="error-message">{error}</div>}
     </div>
   );
 }

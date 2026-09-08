@@ -18,7 +18,7 @@ import { Panel }         from "./components/Panel";
 //   - Rendering the correct view and passing handlers down
 // All auth logic lives in useAuth(). All data lives in mockData.js.
 function App() {
-  const { user, session, busy, error, signIn, signOut } = useAuth();
+  const { user, session, saveSession, busy, error, signIn, signOut } = useAuth();
 
   const [view,    setView]    = useState("search");
   const [query,   setQuery]   = useState("");
@@ -99,7 +99,14 @@ function App() {
         </main>
       </div>
 
-      {panel && <Panel data={panel} close={() => setPanel(null)} />}
+      {panel && (
+        <Panel
+          data={panel}
+          session={session}
+          onSession={saveSession}
+          close={() => setPanel(null)}
+        />
+      )}
 
       <div className="user-status">Signed in as {user.email}</div>
     </div>

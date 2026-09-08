@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS documents (
     mime_type    TEXT        NOT NULL,
     storage_path TEXT        NOT NULL,
     status       TEXT        NOT NULL DEFAULT 'draft',
-    project_id   UUID        NOT NULL REFERENCES projects(id),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     uploaded_by  UUID        NOT NULL REFERENCES users(id),
     reviewer_id  UUID        REFERENCES users(id),
     embedding    TEXT,

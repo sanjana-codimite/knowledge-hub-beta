@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Status } from "./Status";
-import { request, uploadDocument } from "../api/request";
+import { uploadProjectDocument } from "../api/documents";
+import { createProject as createProjectRequest, listProjects } from "../api/projects";
 
 // Panel is the slide-over detail panel. It handles four content types:
 //   - A document (has doc.type)
 //   - A thread (has thread.title, no type)
 //   - "ask"    — ask the team form
 //   - "upload" — add a source form
-export function Panel({ data, close, session, onSession }) {
+export function Panel({ data, projects, onProjectCreated, close, session, onSession,onDocUploaded }) {
   const isDoc = Boolean(data.type);
   const isThread = Boolean(data.title) && !isDoc;
   const isModal = !isDoc && !isThread;
@@ -20,7 +21,7 @@ export function Panel({ data, close, session, onSession }) {
         {isDoc && <DocPanel doc={data} />}
         {isThread && <ThreadPanel thread={data} />}
         {!isDoc && !isThread && (
-          <FormPanel type={data} close={close} session={session} onSession={onSession} />
+          <FormPanel type={data} projects={projects} onProjectCreated={onProjectCreated} close={close} session={session} onSession={onSession} onDocUploaded={onDocUploaded} />
         )}
       </section>
     </div>
@@ -96,41 +97,96 @@ function ThreadPanel({ thread }) {
   );
 }
 
-function FormPanel({ type, close, session, onSession }) {
-  const isAsk = type === "ask";
+function FormPanel({ type,projects, onProjectCreated, close, session, onSession,onDocUploaded }) {
+  // Ask the team panel
+  if (type === "ask") {
+    return (
+      <div className="form-panel">
+        <div className="form-heading">
+          <h2>Ask the team</h2>
+          <span
+            className="upload-status"
+            aria-label="Ask service ready"
+          />
+        </div>
 
-  if (!isAsk) return <UploadPanel close={close} session={session} onSession={onSession} />;
+        <p>
+          Once an answer is accepted, the thread becomes searchable
+          alongside the docs.
+        </p>
 
-  return (
-    <div className="form-panel">
-      <div className="form-heading">
-        <h2>Ask the team</h2>
-        <span className="upload-status" aria-label="Ask service ready" />
+        <input
+          className="panel-input"
+          placeholder="Question - e.g. Why do payouts stall at 'pending_capture'?"
+        />
+
+        <textarea
+          placeholder="Add context: what you tried, error messages, which environment..."
+          rows="5"
+        />
+
+        <div className="upload-field-label">
+          Project
+        </div>
+
+        <div className="project-chips">
+          {["Platform", "Payments", "People", "Design"].map((name) => (
+            <button
+              className="project-chip"
+              key={name}
+              type="button"
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+
+        <div className="form-note">
+          <span className="online" />
+          3 docs look related - they'll be suggested to responders.
+        </div>
+
+        <button
+          className="primary-action"
+          onClick={close}
+        >
+          Post to Platform
+        </button>
       </div>
-      <p>
-        Once an answer is accepted, the thread becomes searchable alongside the docs.
-      </p>
-      <input
-        className="panel-input"
-        placeholder="Question - e.g. Why do payouts stall at 'pending_capture'?"
+    );
+  }
+
+  // Upload panel
+  if (type === "upload") {
+    return (
+      <UploadPanel
+        projects={projects}
+        onProjectCreated={onProjectCreated}
+        close={close}
+        session={session}
+        onSession={onSession}
       />
-      <textarea placeholder="Add context: what you tried, error messages, which environment..." rows="5" />
-      <div className="upload-field-label">Project</div>
-      <div className="project-chips">
-        {['Platform', 'Payments', 'People', 'Design'].map((name) => (
-          <button className="project-chip" key={name} type="button">{name}</button>
-        ))}
-      </div>
-      <div className="form-note"><span className="online" /> 3 docs look related - they&apos;ll be suggested to responders.</div>
-      <button className="primary-action" onClick={close}>Post to Platform</button>
-    </div>
-  );
-}
+    );
+  }
 
-function UploadPanel({ close, session, onSession }) {
+  // Create project panel
+  if (type === "createProject") {
+    return (
+      <CreateProjectPanel
+        close={close}
+        onProjectCreated={onProjectCreated}
+        session={session}
+        onSession={onSession}
+      />
+    );
+  }
+
+  // Unknown panel type
+  return null;
+}
+function UploadPanel({ close, session, onSession,projects, onProjectCreated ,onDocUploaded}) {
   const [files, setFiles] = useState([]);
   const [link, setLink] = useState("");
-  const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState("");
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -141,22 +197,11 @@ function UploadPanel({ close, session, onSession }) {
   const [creatingProject, setCreatingProject] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    request("/web/projects", {}, session, onSession)
-      .then((items) => {
-        if (!active) return;
-        const availableProjects = Array.isArray(items) ? items : [];
-        setProjects(availableProjects);
-        setProjectId(availableProjects[0]?.id || "");
-        if (!availableProjects.length) {
-          setError("No projects are available. Create a project before uploading a document.");
-        }
-      })
-      .catch((reason) => {
-        if (active) setError(reason.message || "Could not load projects.");
-      });
-    return () => { active = false; };
-  }, [session]);
+  if (!projectId && projects.length > 0) {
+    setProjectId(projects[0].id);
+  }
+}, [projects, projectId]);
+
 
   const addFiles = (incoming) => {
     setError("");
@@ -170,7 +215,13 @@ function UploadPanel({ close, session, onSession }) {
 
     try {
       for (const file of files) {
-        await uploadDocument(file, { project_id: projectId }, session, onSession);
+        const uploaded = await uploadProjectDocument(
+        file,
+        { project_id: projectId },
+        session,
+        onSession
+      );
+      if (onDocUploaded) onDocUploaded(uploaded); 
       }
       close();
     } catch (reason) {
@@ -188,21 +239,17 @@ function UploadPanel({ close, session, onSession }) {
     setCreatingProject(true);
     setError("");
     try {
-      const created = await request(
-        "/web/projects",
+      const created = await createProjectRequest(
         {
-          method: "POST",
-          body: JSON.stringify({
-            name,
-            description: projectDescription.trim(),
-          }),
+          name,
+          description: projectDescription.trim(),
         },
         session,
         onSession
       );
 
       if (!created?.id) throw new Error("Project was created without an id.");
-      setProjects((current) => [...current, created]);
+      onProjectCreated(created);
       setProjectId(created.id);
       setProjectName("");
       setProjectDescription("");
@@ -278,7 +325,7 @@ function UploadPanel({ close, session, onSession }) {
             value={projectName}
             onChange={(event) => setProjectName(event.target.value)}
             placeholder="Project name"
-            maxLength={120}
+            maxLength={30}
             autoFocus
           />
           <input
@@ -314,6 +361,111 @@ function UploadPanel({ close, session, onSession }) {
         </button>
       </div>
       {error && <div className="error-message">{error}</div>}
+    </div>
+  );
+}
+
+function CreateProjectPanel({ close, session, onSession ,onProjectCreated }) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+
+  const createProject = async (event) => {
+    event.preventDefault();
+
+    const projectName = name.trim();
+
+    if (!projectName || creating) {
+      return;
+    }
+
+    setCreating(true);
+    setError("");
+
+    try {
+     const created = await createProjectRequest(
+        {
+          name: projectName,
+          description: description.trim(),
+        },
+        session,
+        onSession
+      );
+      onProjectCreated(created);
+      close();
+    } catch (reason) {
+      setError(
+        reason.message || "Could not create project."
+      );
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="form-panel">
+      <div className="form-heading">
+        <h2>Create project</h2>
+      </div>
+
+      <p>
+        Create a project to organize documents and knowledge
+        in the hub.
+      </p>
+
+      <form onSubmit={createProject}>
+        <div className="upload-field-label">
+          Project name
+        </div>
+
+        <input
+          className="panel-input"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="e.g. Payments"
+          maxLength={30}
+          autoFocus
+        />
+
+        <div className="upload-field-label">
+          Description
+        </div>
+
+        <textarea
+          value={description}
+          onChange={(event) =>
+            setDescription(event.target.value)
+          }
+          placeholder="Describe this project..."
+          rows="5"
+          maxLength={500}
+        />
+
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+
+        <div className="upload-actions">
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={close}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="primary-action"
+            disabled={!name.trim() || creating}
+          >
+            {creating ? "Creating..." : "Create project"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

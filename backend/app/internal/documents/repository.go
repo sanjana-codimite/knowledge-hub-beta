@@ -22,7 +22,8 @@ type Repository interface {
 	UpdateStatus(ctx context.Context, id string, status types.DocumentStatus) error
 	AssignReviewer(ctx context.Context, docID, reviewerID string) error
 	SaveEmbedding(ctx context.Context, docID, embedding string) error
-
+	RemoveReviewer(ctx context.Context, docID string) error
+	
 	// Tag operations
 	CreateTag(ctx context.Context, name string) (*types.Tag, error)
 	ListTags(ctx context.Context) ([]types.Tag, error)
@@ -31,7 +32,7 @@ type Repository interface {
 	GetDocumentTags(ctx context.Context, docID string) ([]types.Tag, error)
 
 	// User listing (for reviewer assignment)
-	ListUsers(ctx context.Context) ([]types.User, error)
+	ListUsers(ctx context.Context, currentUserID string) ([]types.User, error)
 }
 
 type postgresRepository struct {
@@ -137,7 +138,17 @@ func (r *postgresRepository) ListByUploader(ctx context.Context, userID string) 
 }
 
 func (r *postgresRepository) ListByReviewer(ctx context.Context, reviewerID string) ([]types.Document, error) {
-	return r.listDocs(ctx, selectDocs+` WHERE reviewer_id = $1 ORDER BY created_at DESC`, reviewerID)
+	return r.listDocs(ctx, selectDocs+` WHERE reviewer_id = $1 AND status = 'in_review' ORDER BY created_at DESC`, reviewerID)
+}
+
+func (r *postgresRepository) RemoveReviewer(ctx context.Context, docID string) error {
+    _, err := r.db.Exec(ctx,
+        `UPDATE documents 
+         SET reviewer_id = NULL, status = 'draft', updated_at = now() 
+         WHERE id = $1`,
+        docID,
+    )
+    return err
 }
 
 func (r *postgresRepository) UpdateStatus(
@@ -256,12 +267,15 @@ func (r *postgresRepository) GetDocumentTags(ctx context.Context, docID string) 
 
 // ── Users (for reviewer listing) ─────────────────────────────────────────────
 
-func (r *postgresRepository) ListUsers(ctx context.Context) ([]types.User, error) {
+func (r *postgresRepository) ListUsers(ctx context.Context, currentUserID string) ([]types.User, error) {
 	const q = `
 		SELECT id, email, name, picture_url, role, created_at, updated_at
-		FROM users ORDER BY name
+		FROM users
+		WHERE id != $1
+		ORDER BY name
 	`
-	rows, err := r.db.Query(ctx, q)
+
+	rows, err := r.db.Query(ctx, q, currentUserID)
 	if err != nil {
 		return nil, fmt.Errorf("documents: list users: %w", err)
 	}
@@ -271,12 +285,18 @@ func (r *postgresRepository) ListUsers(ctx context.Context) ([]types.User, error
 	for rows.Next() {
 		var u types.User
 		if err := rows.Scan(
-			&u.ID, &u.Email, &u.Name, &u.PictureURL,
-			&u.Role, &u.CreatedAt, &u.UpdatedAt,
+			&u.ID,
+			&u.Email,
+			&u.Name,
+			&u.PictureURL,
+			&u.Role,
+			&u.CreatedAt,
+			&u.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("documents: list users scan: %w", err)
 		}
 		users = append(users, u)
 	}
+
 	return users, rows.Err()
 }

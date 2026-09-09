@@ -99,6 +99,32 @@ func (h *Handler) ListAll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, docs)
 }
 
+// RemoveReviewer handles DELETE /web/documents/{id}/reviewer
+func (h *Handler) RemoveReviewer(w http.ResponseWriter, r *http.Request) {
+    ac, ok := types.GetAuthContext(r.Context())
+    if !ok {
+        writeJSONError(w, http.StatusUnauthorized, "unauthorized")
+        return
+    }
+    docID := extractDocID(r.URL.Path, "/reviewer")
+    if docID == "" {
+        writeJSONError(w, http.StatusBadRequest, "missing document id")
+        return
+    }
+    if err := h.svc.RemoveReviewer(r.Context(), docID, ac.UserID); err != nil {
+        switch {
+        case errors.Is(err, ErrNotOwner):
+            writeJSONError(w, http.StatusForbidden, err.Error())
+        case errors.Is(err, ErrInvalidStatus):
+            writeJSONError(w, http.StatusConflict, err.Error())
+        default:
+            writeJSONError(w, http.StatusInternalServerError, "could not remove reviewer")
+        }
+        return
+    }
+    w.WriteHeader(http.StatusNoContent)
+}
+
 // ListMine handles GET /web/documents/mine
 // Returns only the authenticated user's uploaded documents.
 func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
@@ -318,11 +344,17 @@ func (h *Handler) AddTagsToDocument(w http.ResponseWriter, r *http.Request) {
 // ListUsers handles GET /web/users
 // Returns all users so the frontend can populate the reviewer dropdown.
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := h.svc.ListUsers(r.Context())
-	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "could not list users")
-		return
-	}
+	ac, ok := types.GetAuthContext(r.Context())
+    if !ok {
+        writeJSONError(w, http.StatusUnauthorized, "unauthorized")
+        return
+    }
+	users, err := h.svc.ListUsers(r.Context(), ac.UserID)
+    if err != nil {
+        writeJSONError(w, http.StatusInternalServerError, "could not list users")
+        return
+    }
+	
 	writeJSON(w, http.StatusOK, users)
 }
 

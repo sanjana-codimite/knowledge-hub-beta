@@ -1,5 +1,13 @@
 // Topbar renders the top navigation bar: brand, search, upload button, avatar.
-export function Topbar({ user, query, onQuery, onUpload, onSignOut, onMenuToggle }) {
+export function Topbar({
+  user,
+  query,
+  onQuery,
+  onUpload,
+  onCreateProject,
+  onSignOut,
+  onMenuToggle,
+}) {
   return (
     <header className="topbar">
       <button
@@ -25,13 +33,27 @@ export function Topbar({ user, query, onQuery, onUpload, onSignOut, onMenuToggle
         <kbd>⌘ K</kbd>
       </div>
 
-      <button className="upload-button" onClick={onUpload}>
-        ＋ Upload
-      </button>
+      <div className="topbar-actions">
+        <button className="upload-button" onClick={onUpload}>
+          ＋ Upload
+        </button>
 
-      <button className="avatar" onClick={onSignOut} title="Sign out">
-        {(user.name || user.email || "U").slice(0, 2).toUpperCase()}
-      </button>
+        <button className="upload-button" onClick={onCreateProject}>
+          ＋ Project
+        </button>
+
+        <button className="avatar" onClick={onSignOut} title="Sign out">
+          {user.picture_url ? (
+            <img
+              src={user.picture_url}
+              alt={user.name || "User"}
+              className="avatar-image"
+            />
+          ) : (
+            (user.name || user.email || "U").slice(0, 2).toUpperCase()
+          )}
+        </button>
+      </div>
     </header>
   );
 }

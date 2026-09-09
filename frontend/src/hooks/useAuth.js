@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { API, request } from "../api/request";
+import { getCurrentUser, getGoogleLoginUrl, logout } from "../api/auth";
 
 const SESSION_KEY = "atlas.session";
 const POPUP_TIMEOUT_MS = 120_000; 
@@ -29,7 +29,7 @@ export function useAuth() {
   // Load user profile whenever the session changes
   useEffect(() => {
     if (!session) return;
-    request("/web/auth/me", {}, session, saveSession)
+    getCurrentUser(session, saveSession)
       .then(setUser)
       .catch(() => {
         saveSession(null);
@@ -44,7 +44,7 @@ export function useAuth() {
     setBusy(true);
 
     const popup = window.open(
-      `${API}/web/auth/google/login`,
+      getGoogleLoginUrl(),
       "khub-google-login",
       "popup,width=520,height=680"
     );
@@ -107,7 +107,7 @@ export function useAuth() {
 
   const signOut = async () => {
     try {
-      await request("/web/auth/logout", { method: "POST" }, session, saveSession);
+      await logout(session, saveSession);
     } catch {
       // Clear locally even if the server call fails
     }

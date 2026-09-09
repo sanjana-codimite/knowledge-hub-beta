@@ -26,7 +26,7 @@ func main() {
 	clientID := mustEnv("GOOGLE_CLIENT_ID")
 	clientSecret := mustEnv("GOOGLE_CLIENT_SECRET")
 	jwtSecret := mustEnv("JWT_SECRET")
-	uploadDir    := envOrDefault("UPLOAD_DIR", "./storage/uploads")
+	uploadDir := envOrDefault("UPLOAD_DIR", "./storage/uploads")
 
 	// --- PostgreSQL ---
 	pg, err := store.NewPostgres(ctx, store.PostgresConfig{
@@ -37,6 +37,11 @@ func main() {
 	}
 	defer pg.Close()
 	log.Println("connected to postgres")
+
+	if err := store.RunMigrations(ctx, pg, envOrDefault("MIGRATIONS_DIR", "./migrations")); err != nil {
+		log.Fatalf("migrations: %v", err)
+	}
+	log.Println("database migrations applied")
 
 	// --- Redis ---
 	rds, err := store.NewRedisStore(ctx, store.RedisConfig{
@@ -55,9 +60,9 @@ func main() {
 	userSvc := users.NewService(userRepo)
 	projectRepo := projects.NewRepository(pg)
 	projectSvc := projects.NewService(projectRepo)
-	 
-	docRepo := documents.NewRepository(pg) 
-	docSvc := documents.NewService(docRepo, uploadDir)	
+
+	docRepo := documents.NewRepository(pg)
+	docSvc := documents.NewService(docRepo, uploadDir)
 
 	authSvc := authz.NewService(authz.GoogleConfig{
 		ClientID:      clientID,
@@ -67,11 +72,11 @@ func main() {
 	}, jwtSecret)
 
 	app := web.NewApp(web.HandlerConfig{
-		AuthSvc: authSvc,
-		Redis:   rds,
-		UserSvc: userSvc,
+		AuthSvc:    authSvc,
+		Redis:      rds,
+		UserSvc:    userSvc,
 		ProjectSvc: projectSvc,
-		DocSvc: docSvc,
+		DocSvc:     docSvc,
 	})
 
 	// --- HTTP server ---

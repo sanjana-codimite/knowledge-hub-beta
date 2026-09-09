@@ -52,6 +52,8 @@ func (a *App) Router() *http.ServeMux {
 			a.docHandler.AddTagsToDocument(w, r)
 		case strings.HasSuffix(path, "/file") && r.Method == http.MethodGet:
 			a.docHandler.GetFile(w, r)
+		case strings.HasSuffix(path, "/reviewer") && r.Method == http.MethodDelete:
+  			a.docHandler.RemoveReviewer(w, r)	
 		default:
 			http.NotFound(w, r)
 		}

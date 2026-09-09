@@ -20,5 +20,6 @@ RUN go build -o khub ./cmd/khub
 FROM alpine:3.19
 WORKDIR /app
 COPY --from=backend /app/khub ./khub
+COPY --from=backend /app/migrations ./migrations
 EXPOSE 8080
 CMD ["./khub"]

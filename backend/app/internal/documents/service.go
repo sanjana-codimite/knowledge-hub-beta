@@ -105,6 +105,22 @@ func (s *Service) GetByID(ctx context.Context, id string) (*types.Document, erro
 	return doc, nil
 }
 
+// RemoveReviewer unassigns the reviewer and moves doc back to draft.
+// Only the document owner can remove the reviewer.
+func (s *Service) RemoveReviewer(ctx context.Context, docID, requesterID string) error {
+    doc, err := s.repo.GetByID(ctx, docID)
+    if err != nil {
+        return err
+    }
+    if doc.UploadedBy != requesterID {
+        return ErrNotOwner
+    }
+    if doc.Status != types.StatusInReview {
+        return ErrInvalidStatus
+    }
+    return s.repo.RemoveReviewer(ctx, docID)
+}
+
 // ListAll returns all documents (for browsing published docs).
 func (s *Service) ListAll(ctx context.Context) ([]types.Document, error) {
 	return s.repo.ListAll(ctx)
@@ -236,8 +252,8 @@ func (s *Service) AddTagsToDocument(
 
 // ListUsers returns all users — used by the frontend to populate the
 // reviewer assignment dropdown.
-func (s *Service) ListUsers(ctx context.Context) ([]types.User, error) {
-	return s.repo.ListUsers(ctx)
+func (s *Service) ListUsers(ctx context.Context, currentUserID string) ([]types.User, error) {
+	return s.repo.ListUsers(ctx, currentUserID)
 }
 
 // ── Embedding helper ─────────────────────────────────────────────────────────

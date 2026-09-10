@@ -135,6 +135,8 @@ function App() {
               loading={searchLoading}
               error={searchError}
               onDocClick={setPanel}
+              session={session}
+              onSession={saveSession}
             />
           )}
 

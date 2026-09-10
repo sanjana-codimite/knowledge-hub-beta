@@ -9,6 +9,8 @@ export function SearchView({
   loading,
   error,
   onDocClick,
+  session,
+  onSession,
 }) {
   return (
     <>
@@ -40,7 +42,13 @@ export function SearchView({
           <div className="my-docs-empty">{error}</div>
         ) : (
           docs.map((doc) => (
-            <DocumentCard key={doc.id} doc={doc} onClick={() => onDocClick(doc)} />
+            <DocumentCard
+              key={doc.id}
+              doc={doc}
+              onClick={() => onDocClick(doc)}
+              session={session}
+              onSession={onSession}
+            />
           ))
         )}
         {!loading && !error && !docs.length && (

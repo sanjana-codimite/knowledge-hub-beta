@@ -38,7 +38,7 @@ func (g *geminiClient) getEmbedding(ctx context.Context, text string) ([]float32
         },
     },
     "output_dimensionality": 1536,
-	}
+}
 
     payload, err := json.Marshal(reqBody)
     if err != nil {

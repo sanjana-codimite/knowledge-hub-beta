@@ -1,7 +1,15 @@
 import { DocumentCard } from "./DocumentCard";
 
 // SearchView renders the hero search panel and the filtered document list.
-export function SearchView({ query, onQuery, project, docs, onDocClick }) {
+export function SearchView({
+  query,
+  onQuery,
+  project,
+  docs,
+  loading,
+  error,
+  onDocClick,
+}) {
   return (
     <>
       <section className="hero-panel">
@@ -21,15 +29,23 @@ export function SearchView({ query, onQuery, project, docs, onDocClick }) {
 
       <div className="result-head">
         <span>
-          {docs.length} results in <b>{project}</b>
+          {loading ? "Searching..." : `${docs.length} results in `}
+          {!loading && <b>{project}</b>}
         </span>
         <span className="filter-note">Current · Outdated · In review</span>
       </div>
 
       <div className="doc-list">
-        {docs.map((doc) => (
-          <DocumentCard key={doc.id} doc={doc} onClick={() => onDocClick(doc)} />
-        ))}
+        {error ? (
+          <div className="my-docs-empty">{error}</div>
+        ) : (
+          docs.map((doc) => (
+            <DocumentCard key={doc.id} doc={doc} onClick={() => onDocClick(doc)} />
+          ))
+        )}
+        {!loading && !error && !docs.length && (
+          <div className="my-docs-empty">No matching documents found.</div>
+        )}
       </div>
     </>
   );

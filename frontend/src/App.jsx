@@ -1,12 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 
 import { useAuth }       from "./hooks/useAuth";
 import { useUsers }      from "./hooks/useUsers";
 import { useMyDocs, useDocsForReview } from "./hooks/useMyDocs";
-
-// Static mock data — only used for Search view until real doc API is wired
-import { docs as mockDocs } from "./data/mockData";
 
 import { LoginScreen }   from "./components/LoginScreen";
 import { Topbar }        from "./components/Topbar";
@@ -20,6 +17,7 @@ import { MyDocsView }    from "./components/MyDocsView";
 import { ReviewView }    from "./components/MyDocsReview";
 
 import { listProjects }  from "./api/projects";
+import { useDocumentSearch } from "./hooks/useDocumentSearch";
 
 function App() {
   const { user, session, saveSession, busy, error, signIn, signOut } = useAuth();
@@ -50,6 +48,12 @@ function App() {
     removeDoc,
   } = useDocsForReview(session, saveSession, view === "my-reviews");
 
+  const {
+    docs: searchDocs,
+    loading: searchLoading,
+    error: searchError,
+  } = useDocumentSearch(session, saveSession, query, view === "search");
+
   // Load projects once when session is available
   useEffect(() => {
     if (!session) return;
@@ -65,21 +69,6 @@ function App() {
 
     return () => { active = false; };
   }, [session]);
-
-  // Filter mock docs for Search view
-  // Uses mockDocs (renamed import) so it doesn't collide with reviewDocs
-  const filteredDocs = useMemo(
-    () =>
-      mockDocs.filter((doc) => {
-        const tags = Array.isArray(doc.tags) ? doc.tags.join(" ") : "";
-        const text = `${doc.title} ${doc.excerpt} ${tags}`.toLowerCase();
-        return (
-          (project === "All projects" || doc.project === project) &&
-          (!query || text.includes(query.toLowerCase()))
-        );
-      }),
-    [project, query]
-  );
 
   const handleQuery = (q) => {
     setQuery(q);
@@ -142,7 +131,9 @@ function App() {
               query={query}
               onQuery={handleQuery}
               project={project}
-              docs={filteredDocs}
+              docs={searchDocs}
+              loading={searchLoading}
+              error={searchError}
               onDocClick={setPanel}
             />
           )}

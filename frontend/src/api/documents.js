@@ -43,6 +43,11 @@ export function listMyDocuments(session, onSession) {
   return request("/web/documents/mine", {}, session, onSession);
 }
 
+// Get all documents for the search/browse view
+export function listAllDocuments(session, onSession) {
+  return request("/web/documents", {}, session, onSession);
+}
+
 export function listForReview(session, onSession) {
   return request("/web/documents/review", {}, session, onSession);
 }
@@ -131,5 +136,4 @@ export function searchDocuments(query, session, onSession) {
     onSession
   );
 }
-
 

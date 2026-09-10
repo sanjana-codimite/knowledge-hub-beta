@@ -58,7 +58,6 @@ func (r *postgresRepository) Create(
 		RETURNING id, title, filename, mime_type, storage_path, status,
 		          project_id, uploaded_by,
 		          COALESCE(reviewer_id::text, ''),
-		          COALESCE(embedding, ''),
 		          created_at, updated_at
 	`
 	var d types.Document
@@ -81,7 +80,6 @@ func (r *postgresRepository) GetByID(ctx context.Context, id string) (*types.Doc
 		SELECT id, title, filename, mime_type, storage_path, status,
 		       project_id, uploaded_by,
 		       COALESCE(reviewer_id::text, ''),
-		       COALESCE(embedding, ''),
 		       created_at, updated_at
 		FROM documents WHERE id = $1
 	`
@@ -126,7 +124,6 @@ const selectDocs = `
 	SELECT id, title, filename, mime_type, storage_path, status,
 	       project_id, uploaded_by,
 	       COALESCE(reviewer_id::text, ''),
-	       COALESCE(embedding, ''),
 	       created_at, updated_at
 	FROM documents
 `

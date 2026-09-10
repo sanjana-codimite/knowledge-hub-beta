@@ -26,7 +26,6 @@ CREATE TABLE IF NOT EXISTS documents (
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     uploaded_by  UUID        NOT NULL REFERENCES users(id),
     reviewer_id  UUID        REFERENCES users(id),
-    embedding    TEXT,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -38,7 +37,27 @@ CREATE TABLE IF NOT EXISTS document_tags (
     PRIMARY KEY (document_id, tag_id)
 );
 
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS document_embeddings (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    document_id      UUID NOT NULL UNIQUE
+                     REFERENCES documents(id)
+                     ON DELETE CASCADE,
+
+    embedding_vector vector(1536) NOT NULL,
+
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_documents_uploaded_by ON documents(uploaded_by);
 CREATE INDEX IF NOT EXISTS idx_documents_reviewer_id ON documents(reviewer_id);
 CREATE INDEX IF NOT EXISTS idx_documents_project_id  ON documents(project_id);
 CREATE INDEX IF NOT EXISTS idx_documents_status      ON documents(status);
+CREATE INDEX IF NOT EXISTS idx_document_embeddings_vector
+ON document_embeddings
+USING ivfflat (embedding_vector vector_cosine_ops)
+WITH (lists = 10);
+
+

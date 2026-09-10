@@ -358,6 +358,24 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, users)
 }
 
+// handler.go — Search
+// GET /web/documents/search?q=payment+gateway
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+    query := r.URL.Query().Get("q")
+    if query == "" {
+        writeJSONError(w, http.StatusBadRequest, "q parameter is required")
+        return
+    }
+
+    docs, err := h.svc.Search(r.Context(), query)
+    if err != nil {
+        writeJSONError(w, http.StatusInternalServerError, "search failed: "+err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, docs)
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // extractDocID pulls the UUID from a path like /web/documents/{id}/approve

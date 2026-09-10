@@ -24,6 +24,7 @@ func main() {
 
 	// --- Validate required env vars (fail fast — no silent fallbacks) ---
 	clientID := mustEnv("GOOGLE_CLIENT_ID")
+	geminiAPIKey := mustEnv("GEMINI_API_KEY")
 	clientSecret := mustEnv("GOOGLE_CLIENT_SECRET")
 	jwtSecret := mustEnv("JWT_SECRET")
 	uploadDir := envOrDefault("UPLOAD_DIR", "./storage/uploads")
@@ -58,11 +59,12 @@ func main() {
 	// --- Dependency injection: repo → service → handler ---
 	userRepo := users.NewRepository(pg)
 	userSvc := users.NewService(userRepo)
+
 	projectRepo := projects.NewRepository(pg)
 	projectSvc := projects.NewService(projectRepo)
 
 	docRepo := documents.NewRepository(pg)
-	docSvc := documents.NewService(docRepo, uploadDir)
+	docSvc := documents.NewService(docRepo, uploadDir,geminiAPIKey)
 
 	authSvc := authz.NewService(authz.GoogleConfig{
 		ClientID:      clientID,

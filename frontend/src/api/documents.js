@@ -122,4 +122,14 @@ export async function getDocumentFileURL(docId, session, onSession) {
   return URL.createObjectURL(blob);
 }
 
+// Search documents by keyword using vector similarity
+export function searchDocuments(query, session, onSession) {
+  return request(
+    `/web/documents/search?q=${encodeURIComponent(query)}`,
+    {},
+    session,
+    onSession
+  );
+}
+
 

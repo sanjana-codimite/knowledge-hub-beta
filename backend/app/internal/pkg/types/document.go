@@ -14,21 +14,20 @@ const (
 var AllowedMimeTypes = map[string]bool{
     "application/pdf": true,
     "text/markdown":   true,
-    "text/plain":      true, // .md files sometimes detected as text/plain
+    "text/plain":      true,
 }
 
 type Document struct {
-    ID          string         `json:"id"`
-    Title       string         `json:"title"`
-    Filename    string         `json:"filename"`
-    MimeType    string         `json:"mime_type"`
-    StoragePath string         `json:"-"`         // never expose disk path to client
-    Status      DocumentStatus `json:"status"`
-    ProjectID   string         `json:"project_id"`
-    UploadedBy  string         `json:"uploaded_by"`
-    ReviewerID  string         `json:"reviewer_id,omitempty"`
-    Embedding   string         `json:"-"`         // internal only
-    Tags        []Tag          `json:"tags,omitempty"`
-    CreatedAt   time.Time      `json:"created_at"`
-    UpdatedAt   time.Time      `json:"updated_at"`
+    ID              string         `json:"id"`
+    Title           string         `json:"title"`
+    Filename        string         `json:"filename"`
+    MimeType        string         `json:"mime_type"`
+    StoragePath     string         `json:"-"`
+    Status          DocumentStatus `json:"status"`
+    ProjectID       string         `json:"project_id"`
+    UploadedBy      string         `json:"uploaded_by"`
+    ReviewerID      string         `json:"reviewer_id,omitempty"`
+    Tags            []Tag          `json:"tags,omitempty"`
+    CreatedAt       time.Time      `json:"created_at"`
+    UpdatedAt       time.Time      `json:"updated_at"`
 }

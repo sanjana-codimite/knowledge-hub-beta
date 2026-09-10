@@ -2,7 +2,6 @@ package documents
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -19,10 +18,11 @@ import (
 type Service struct {
 	repo      Repository
 	uploadDir string
+	gemini    *geminiClient
 }
 
-func NewService(repo Repository, uploadDir string) *Service {
-	return &Service{repo: repo, uploadDir: uploadDir}
+func NewService(repo Repository, uploadDir string, geminiAPIKey string) *Service {
+	return &Service{repo: repo, uploadDir: uploadDir, gemini: newGeminiClient(geminiAPIKey)}
 }
 
 // Upload validates the file type, saves it to disk, and creates
@@ -108,17 +108,17 @@ func (s *Service) GetByID(ctx context.Context, id string) (*types.Document, erro
 // RemoveReviewer unassigns the reviewer and moves doc back to draft.
 // Only the document owner can remove the reviewer.
 func (s *Service) RemoveReviewer(ctx context.Context, docID, requesterID string) error {
-    doc, err := s.repo.GetByID(ctx, docID)
-    if err != nil {
-        return err
-    }
-    if doc.UploadedBy != requesterID {
-        return ErrNotOwner
-    }
-    if doc.Status != types.StatusInReview {
-        return ErrInvalidStatus
-    }
-    return s.repo.RemoveReviewer(ctx, docID)
+	doc, err := s.repo.GetByID(ctx, docID)
+	if err != nil {
+		return err
+	}
+	if doc.UploadedBy != requesterID {
+		return ErrNotOwner
+	}
+	if doc.Status != types.StatusInReview {
+		return ErrInvalidStatus
+	}
+	return s.repo.RemoveReviewer(ctx, docID)
 }
 
 // ListAll returns all documents (for browsing published docs).
@@ -169,21 +169,17 @@ func (s *Service) Approve(ctx context.Context, docID, reviewerID string) error {
 		return ErrInvalidStatus
 	}
 
-	// Read file content for embedding generation
-	content, err := os.ReadFile(doc.StoragePath)
+	text, err := extractText(doc.StoragePath, doc.MimeType)
 	if err != nil {
-		return fmt.Errorf("documents: reading file for embedding: %w", err)
+		return fmt.Errorf("documents: extracting text: %w", err)
 	}
 
-	// Generate embedding — for now store a simple word-frequency
-	// representation as JSON. Replace with a real embedding API call
-	// (OpenAI, Ollama, etc.) in a later task.
-	embedding, err := generateSimpleEmbedding(content)
+	vector, err := s.gemini.getEmbedding(ctx, text)
 	if err != nil {
-		return fmt.Errorf("documents: generating embedding: %w", err)
+		return fmt.Errorf("documents: getting embedding: %w", err)
 	}
 
-	return s.repo.SaveEmbedding(ctx, docID, embedding)
+	return s.repo.SaveEmbedding(ctx, docID, vector)
 }
 
 // Reject moves the document back to rejected status.
@@ -200,6 +196,27 @@ func (s *Service) Reject(ctx context.Context, docID, reviewerID string) error {
 		return ErrInvalidStatus
 	}
 	return s.repo.UpdateStatus(ctx, docID, types.StatusRejected)
+}
+
+// service.go — Search
+func (s *Service) Search(
+	ctx context.Context,
+	query string,
+) ([]types.Document, error) {
+
+	if query == "" {
+		return nil, fmt.Errorf("documents: search query is required")
+	}
+
+	vector, err := s.gemini.getEmbedding(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"documents: embedding search query: %w",
+			err,
+		)
+	}
+
+	return s.repo.SearchByVector(ctx, vector, 10)
 }
 
 // GetFile returns the raw file bytes and MIME type for download/preview.
@@ -254,29 +271,4 @@ func (s *Service) AddTagsToDocument(
 // reviewer assignment dropdown.
 func (s *Service) ListUsers(ctx context.Context, currentUserID string) ([]types.User, error) {
 	return s.repo.ListUsers(ctx, currentUserID)
-}
-
-// ── Embedding helper ─────────────────────────────────────────────────────────
-
-// generateSimpleEmbedding produces a placeholder embedding from file content.
-// This is a simple word-count vector stored as JSON — replace with a real
-// embedding API (OpenAI text-embedding-ada-002, Ollama, etc.) when ready.
-func generateSimpleEmbedding(content []byte) (string, error) {
-	text := strings.ToLower(string(content))
-	words := strings.Fields(text)
-
-	freq := make(map[string]int)
-	for _, w := range words {
-		// Strip punctuation
-		w = strings.Trim(w, `.,!?;:"'()[]{}`)
-		if len(w) > 2 {
-			freq[w]++
-		}
-	}
-
-	data, err := json.Marshal(freq)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,7 +22,8 @@ type Repository interface {
 	ListByReviewer(ctx context.Context, reviewerID string) ([]types.Document, error)
 	UpdateStatus(ctx context.Context, id string, status types.DocumentStatus) error
 	AssignReviewer(ctx context.Context, docID, reviewerID string) error
-	SaveEmbedding(ctx context.Context, docID, embedding string) error
+    SaveEmbedding(ctx context.Context, docID string, vector []float32) error
+	SearchByVector(ctx context.Context, vector []float32, limit int) ([]types.Document, error)
 	RemoveReviewer(ctx context.Context, docID string) error
 	
 	// Tag operations
@@ -66,7 +68,7 @@ func (r *postgresRepository) Create(
 	).Scan(
 		&d.ID, &d.Title, &d.Filename, &d.MimeType, &d.StoragePath,
 		&d.Status, &d.ProjectID, &d.UploadedBy, &d.ReviewerID,
-		&d.Embedding, &d.CreatedAt, &d.UpdatedAt,
+		&d.CreatedAt, &d.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("documents: create: %w", err)
@@ -87,7 +89,7 @@ func (r *postgresRepository) GetByID(ctx context.Context, id string) (*types.Doc
 	err := r.db.QueryRow(ctx, q, id).Scan(
 		&d.ID, &d.Title, &d.Filename, &d.MimeType, &d.StoragePath,
 		&d.Status, &d.ProjectID, &d.UploadedBy, &d.ReviewerID,
-		&d.Embedding, &d.CreatedAt, &d.UpdatedAt,
+		&d.CreatedAt, &d.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -111,7 +113,7 @@ func (r *postgresRepository) listDocs(ctx context.Context, q string, args ...any
 		if err := rows.Scan(
 			&d.ID, &d.Title, &d.Filename, &d.MimeType, &d.StoragePath,
 			&d.Status, &d.ProjectID, &d.UploadedBy, &d.ReviewerID,
-			&d.Embedding, &d.CreatedAt, &d.UpdatedAt,
+			&d.CreatedAt, &d.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("documents: list scan: %w", err)
 		}
@@ -174,15 +176,82 @@ func (r *postgresRepository) AssignReviewer(
 	return err
 }
 
+func vectorToString(v []float32) string {
+    var b strings.Builder
+    b.WriteByte('[')
+    for i, f := range v {
+        if i > 0 {
+            b.WriteByte(',')
+        }
+        b.WriteString(fmt.Sprintf("%f", f))
+    }
+    b.WriteByte(']')
+    return b.String()
+}
+
 func (r *postgresRepository) SaveEmbedding(
-	ctx context.Context,
-	docID, embedding string,
+    ctx context.Context,
+    docID string,
+    vector []float32,
 ) error {
-	_, err := r.db.Exec(ctx,
-		`UPDATE documents SET embedding = $1, status = $2, updated_at = now() WHERE id = $3`,
-		embedding, types.StatusPublished, docID,
-	)
-	return err
+    _, err := r.db.Exec(
+        ctx,
+        `INSERT INTO document_embeddings
+            (document_id, embedding_vector)
+         VALUES ($1, $2::vector)`,
+        docID,
+        vectorToString(vector),
+    )
+
+    if err != nil {
+        return err
+    }
+
+    _, err = r.db.Exec(
+        ctx,
+        `UPDATE documents
+         SET status = 'published',
+             updated_at = now()
+         WHERE id = $1`,
+        docID,
+    )
+
+    return err
+}
+
+func (r *postgresRepository) SearchByVector(
+    ctx context.Context,
+    vector []float32,
+    limit int,
+) ([]types.Document, error) {
+
+    const q = `
+        SELECT
+            d.id,
+            d.title,
+            d.filename,
+            d.mime_type,
+            d.storage_path,
+            d.status,
+            d.project_id,
+            d.uploaded_by,
+            COALESCE(d.reviewer_id::text, ''),
+            d.created_at,
+            d.updated_at
+        FROM document_embeddings de
+        JOIN documents d
+            ON d.id = de.document_id
+        WHERE d.status = 'published'
+        ORDER BY de.embedding_vector <=> $1::vector
+        LIMIT $2
+    `
+
+    return r.listDocs(
+        ctx,
+        q,
+        vectorToString(vector),
+        limit,
+    )
 }
 
 // ── Tags ─────────────────────────────────────────────────────────────────────

@@ -31,6 +31,13 @@ func (a *App) Router() *http.ServeMux {
 	mux.HandleFunc("/web/documents/upload", a.authMW.RequireAuth(a.docHandler.Upload))
 	mux.HandleFunc("/web/documents/mine",   a.authMW.RequireAuth(a.docHandler.ListMine))
 	mux.HandleFunc("/web/documents/review", a.authMW.RequireAuth(a.docHandler.ListForReview))
+	mux.HandleFunc("/web/documents/search", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			a.docHandler.Search(w, r)
+			return
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}))
 	mux.HandleFunc("/web/documents", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			a.docHandler.ListAll(w, r)

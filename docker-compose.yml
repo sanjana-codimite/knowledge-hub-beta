@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17
+    image: pgvector/pgvector:pg17
     container_name: khub-postgres
     restart: unless-stopped
     environment:
@@ -49,6 +49,7 @@ services:
       GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}
       JWT_SECRET: ${JWT_SECRET}
       UPLOAD_DIR: /app/storage/uploads
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     volumes:
       - ./storage/uploads:/app/storage/uploads
     depends_on:

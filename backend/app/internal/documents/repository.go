@@ -174,81 +174,97 @@ func (r *postgresRepository) AssignReviewer(
 }
 
 func vectorToString(v []float32) string {
-    var b strings.Builder
-    b.WriteByte('[')
-    for i, f := range v {
-        if i > 0 {
-            b.WriteByte(',')
-        }
-        b.WriteString(fmt.Sprintf("%f", f))
-    }
-    b.WriteByte(']')
-    return b.String()
+	var b strings.Builder
+
+	b.WriteByte('[')
+
+	for i, value := range v {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+
+		b.WriteString(fmt.Sprintf("%f", value))
+	}
+
+	b.WriteByte(']')
+
+	return b.String()
 }
 
 func (r *postgresRepository) SaveEmbedding(
-    ctx context.Context,
-    docID string,
-    vector []float32,
+	ctx context.Context,
+	docID string,
+	vector []float32,
 ) error {
-    _, err := r.db.Exec(
-        ctx,
-        `INSERT INTO document_embeddings
-            (document_id, embedding_vector)
-         VALUES ($1, $2::vector)`,
-        docID,
-        vectorToString(vector),
-    )
 
-    if err != nil {
-        return err
-    }
+	if len(vector) != 1536 {
+		return fmt.Errorf(
+			"expected 1536-dimensional vector, got %d",
+			len(vector),
+		)
+	}
 
-    _, err = r.db.Exec(
-        ctx,
-        `UPDATE documents
-         SET status = 'published',
-             updated_at = now()
-         WHERE id = $1`,
-        docID,
-    )
+	_, err := r.db.Exec(
+		ctx,
+		`INSERT INTO document_embeddings
+			(document_id, embedding_vector)
+		VALUES ($1, $2::vector)`,
+		docID,
+		vectorToString(vector),
+	)
 
-    return err
+	if err != nil {
+		return fmt.Errorf(
+			"saving embedding: %w",
+			err,
+		)
+	}
+
+	_, err = r.db.Exec(
+		ctx,
+		`UPDATE documents
+		 SET status = 'published',
+		     updated_at = now()
+		 WHERE id = $1`,
+		docID,
+	)
+
+	return err
 }
 
 func (r *postgresRepository) SearchByVector(
-    ctx context.Context,
-    vector []float32,
-    limit int,
+	ctx context.Context,
+	vector []float32,
+	limit int,
 ) ([]types.Document, error) {
 
-    const q = `
-        SELECT
-            d.id,
-            d.title,
-            d.filename,
-            d.mime_type,
-            d.storage_path,
-            d.status,
-            d.project_id,
-            d.uploaded_by,
-            COALESCE(d.reviewer_id::text, ''),
-            d.created_at,
-            d.updated_at
-        FROM document_embeddings de
-        JOIN documents d
-            ON d.id = de.document_id
-        WHERE d.status = 'published'
-        ORDER BY de.embedding_vector <=> $1::vector
-        LIMIT $2
-    `
+	const query = `
+		SELECT
+			d.id,
+			d.title,
+			d.filename,
+			d.mime_type,
+			d.storage_path,
+			d.status,
+			d.project_id,
+			d.uploaded_by,
+			COALESCE(d.reviewer_id::text, ''),
+			d.created_at,
+			d.updated_at
+		FROM document_embeddings de
+		JOIN documents d
+			ON d.id = de.document_id
+		WHERE d.status = 'published'
+		ORDER BY de.embedding_vector <=> $1::vector
+		LIMIT $2
+	`
 
-    return r.listDocs(
-        ctx,
-        q,
-        vectorToString(vector),
-        limit,
-    )
+	return r.listDocs(
+		ctx,
+		query,
+		vectorToString(vector),
+		limit,
+	)
 }
 
 // ── Tags ─────────────────────────────────────────────────────────────────────

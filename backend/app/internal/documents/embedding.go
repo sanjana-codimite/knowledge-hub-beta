@@ -1,131 +1,224 @@
 package documents
 
 import (
-    "bytes"
-    "context"
-    "encoding/json"
-    "fmt"
-    "net/http"
+	"context"
+	"fmt"
 	"os"
+	"google.golang.org/genai"
 )
 
-const geminiEmbedURL = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
+const (
+	geminiModel          = "gemini-embedding-2"
+	geminiEmbeddingSize = 1536
+)
 
 type geminiClient struct {
-    apiKey string
-    http   *http.Client
+	client *genai.Client
 }
 
-func newGeminiClient(apiKey string) *geminiClient {
-    return &geminiClient{
-        apiKey: apiKey,
-        http:   &http.Client{},
-    }
+func newGeminiClient(ctx context.Context, apiKey string) (*geminiClient, error) {
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey: apiKey,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("embedding: creating Gemini client: %w", err)
+	}
+
+	return &geminiClient{
+		client: client,
+	}, nil
 }
 
-// getEmbedding sends text to Gemini and returns a 768-float vector.
-func (g *geminiClient) getEmbedding(ctx context.Context, text string) ([]float32, error) {
-    // Gemini has a token limit — truncate long documents
-    if len(text) > 10000 {
-        text = text[:10000]
-    }
+func (g *geminiClient) getEmbedding(
+	ctx context.Context,
+	title string,
+	text string,
+) ([]float32, error) {
 
-    reqBody := map[string]any{
-    "model": "models/gemini-embedding-001",
-    "content": map[string]any{
-        "parts": []map[string]any{
-            {"text": text},
-        },
-    },
-    "output_dimensionality": 1536,
+	if text == "" {
+		return nil, fmt.Errorf("embedding: document text is empty")
+	}
+
+	// Prevent extremely large input.
+	// Gemini Embedding 2 supports up to 8192 input tokens.
+	if len(text) > 30000 {
+		text = text[:30000]
+	}
+
+	documentText := fmt.Sprintf(
+		"title: %s | text: %s",
+		title,
+		text,
+	)
+
+	contents := []*genai.Content{
+		genai.NewContentFromText(
+			documentText,
+			genai.RoleUser,
+		),
+	}
+
+	result, err := g.client.Models.EmbedContent(
+		ctx,
+		geminiModel,
+		contents,
+		&genai.EmbedContentConfig{
+			OutputDimensionality: genai.Ptr(int32(geminiEmbeddingSize)),
+		},
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf(
+			"embedding: generating document embedding: %w",
+			err,
+		)
+	}
+
+	if len(result.Embeddings) == 0 {
+		return nil, fmt.Errorf(
+			"embedding: Gemini returned no embeddings",
+		)
+	}
+
+	embedding := result.Embeddings[0].Values
+
+	if len(embedding) != geminiEmbeddingSize {
+		return nil, fmt.Errorf(
+			"embedding: expected %d dimensions, got %d",
+			geminiEmbeddingSize,
+			len(embedding),
+		)
+	}
+
+	return embedding, nil
 }
 
-    payload, err := json.Marshal(reqBody)
-    if err != nil {
-        return nil, fmt.Errorf("embedding: marshaling request: %w", err)
-    }
+func (g *geminiClient) getQueryEmbedding(
+	ctx context.Context,
+	query string,
+) ([]float32, error) {
 
-    url := fmt.Sprintf("%s?key=%s", geminiEmbedURL, g.apiKey)
-    req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
-    if err != nil {
-        return nil, fmt.Errorf("embedding: creating request: %w", err)
-    }
-    req.Header.Set("Content-Type", "application/json")
+	if query == "" {
+		return nil, fmt.Errorf("embedding: search query is empty")
+	}
 
-    resp, err := g.http.Do(req)
-    if err != nil {
-        return nil, fmt.Errorf("embedding: calling gemini: %w", err)
-    }
-    defer resp.Body.Close()
+	if len(query) > 10000 {
+		query = query[:10000]
+	}
 
-    if resp.StatusCode != http.StatusOK {
-        var errBody map[string]any
-        _ = json.NewDecoder(resp.Body).Decode(&errBody)
-        return nil, fmt.Errorf("embedding: gemini returned %d: %v", resp.StatusCode, errBody)
-    }
+	queryText := fmt.Sprintf(
+		"task: search result | query: %s",
+		query,
+	)
 
-    var result struct {
-        Embedding struct {
-            Values []float32 `json:"values"`
-        } `json:"embedding"`
-    }
-    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-        return nil, fmt.Errorf("embedding: decoding response: %w", err)
-    }
+	contents := []*genai.Content{
+		genai.NewContentFromText(
+			queryText,
+			genai.RoleUser,
+		),
+	}
 
-    if len(result.Embedding.Values) == 0 {
-        return nil, fmt.Errorf("embedding: empty vector returned")
-    }
+	result, err := g.client.Models.EmbedContent(
+		ctx,
+		geminiModel,
+		contents,
+		&genai.EmbedContentConfig{
+			OutputDimensionality: genai.Ptr(int32(geminiEmbeddingSize)),
+		},
+	)
 
-    return result.Embedding.Values, nil
+	if err != nil {
+		return nil, fmt.Errorf(
+			"embedding: generating query embedding: %w",
+			err,
+		)
+	}
+
+	if len(result.Embeddings) == 0 {
+		return nil, fmt.Errorf(
+			"embedding: Gemini returned no query embedding",
+		)
+	}
+
+	embedding := result.Embeddings[0].Values
+
+	if len(embedding) != geminiEmbeddingSize {
+		return nil, fmt.Errorf(
+			"embedding: expected %d query dimensions, got %d",
+			geminiEmbeddingSize,
+			len(embedding),
+		)
+	}
+
+	return embedding, nil
 }
 
 // extractText pulls plain text from a file based on its MIME type.
 // PDF text extraction is basic — replace with pdfcpu for better results.
 func extractText(path, mimeType string) (string, error) {
-    switch mimeType {
-    case "text/markdown", "text/plain":
-        data, err := os.ReadFile(path)
-        if err != nil {
-            return "", fmt.Errorf("embedding: reading md file: %w", err)
-        }
-        return string(data), nil
+	switch mimeType {
 
-    case "application/pdf":
-        // Basic: read raw bytes and extract printable ASCII
-        // For production replace with: github.com/ledongthuc/pdf
-        data, err := os.ReadFile(path)
-        if err != nil {
-            return "", fmt.Errorf("embedding: reading pdf file: %w", err)
-        }
-        return extractPDFText(data), nil
+	case "text/markdown", "text/plain":
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf(
+				"embedding: reading text file: %w",
+				err,
+			)
+		}
 
-    default:
-        return "", fmt.Errorf("embedding: unsupported mime type %s", mimeType)
-    }
+		return string(data), nil
+
+	case "application/pdf":
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf(
+				"embedding: reading PDF file: %w",
+				err,
+			)
+		}
+
+		return extractPDFText(data), nil
+
+	default:
+		return "", fmt.Errorf(
+			"embedding: unsupported mime type %s",
+			mimeType,
+		)
+	}
 }
 
 // extractPDFText does basic text extraction from PDF bytes.
 // It looks for text between BT (begin text) and ET (end text) markers.
 // Replace with a proper PDF library for production use.
 func extractPDFText(data []byte) string {
-    text := string(data)
-    var result bytes.Buffer
-    inText := false
+	text := string(data)
 
-    for i := 0; i < len(text)-1; i++ {
-        if text[i] == 'B' && text[i+1] == 'T' {
-            inText = true
-            continue
-        }
-        if text[i] == 'E' && text[i+1] == 'T' {
-            inText = false
-            result.WriteByte(' ')
-            continue
-        }
-        if inText && text[i] >= 32 && text[i] < 127 {
-            result.WriteByte(text[i])
-        }
-    }
-    return result.String()
+	var result []byte
+	inText := false
+
+	for i := 0; i < len(text)-1; i++ {
+
+		if text[i] == 'B' && text[i+1] == 'T' {
+			inText = true
+			i++
+			continue
+		}
+
+		if text[i] == 'E' && text[i+1] == 'T' {
+			inText = false
+			result = append(result, ' ')
+			i++
+			continue
+		}
+
+		if inText &&
+			text[i] >= 32 &&
+			text[i] < 127 {
+
+			result = append(result, text[i])
+		}
+	}
+
+	return string(result)
 }

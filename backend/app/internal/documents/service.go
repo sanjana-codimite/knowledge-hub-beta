@@ -21,8 +21,23 @@ type Service struct {
 	gemini    *geminiClient
 }
 
-func NewService(repo Repository, uploadDir string, geminiAPIKey string) *Service {
-	return &Service{repo: repo, uploadDir: uploadDir, gemini: newGeminiClient(geminiAPIKey)}
+func NewService(
+	ctx context.Context,
+	repo Repository,
+	uploadDir string,
+	geminiAPIKey string,
+) (*Service, error) {
+
+	gemini, err := newGeminiClient(ctx, geminiAPIKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Service{
+		repo:      repo,
+		uploadDir: uploadDir,
+		gemini:    gemini,
+	}, nil
 }
 
 // Upload validates the file type, saves it to disk, and creates
@@ -157,29 +172,64 @@ func (s *Service) AssignReviewer(
 
 // Approve is called by the assigned reviewer to publish a document.
 // It reads the file, creates a simple embedding, and saves it to Postgres.
-func (s *Service) Approve(ctx context.Context, docID, reviewerID string) error {
+func (s *Service) Approve(
+	ctx context.Context,
+	docID string,
+	reviewerID string,
+) error {
+
 	doc, err := s.repo.GetByID(ctx, docID)
 	if err != nil {
 		return err
 	}
+
 	if doc.ReviewerID != reviewerID {
 		return ErrNotReviewer
 	}
+
 	if doc.Status != types.StatusInReview {
 		return ErrInvalidStatus
 	}
 
-	text, err := extractText(doc.StoragePath, doc.MimeType)
+	// 1. Extract document text
+	text, err := extractText(
+		doc.StoragePath,
+		doc.MimeType,
+	)
 	if err != nil {
-		return fmt.Errorf("documents: extracting text: %w", err)
+		return fmt.Errorf(
+			"documents: extracting text: %w",
+			err,
+		)
 	}
 
-	vector, err := s.gemini.getEmbedding(ctx, text)
+	// 2. Generate Gemini embedding
+	vector, err := s.gemini.getEmbedding(
+		ctx,
+		doc.Title,
+		text,
+	)
 	if err != nil {
-		return fmt.Errorf("documents: getting embedding: %w", err)
+		return fmt.Errorf(
+			"documents: generating embedding: %w",
+			err,
+		)
 	}
 
-	return s.repo.SaveEmbedding(ctx, docID, vector)
+	// 3. Save embedding + publish document
+	err = s.repo.SaveEmbedding(
+		ctx,
+		docID,
+		vector,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"documents: saving embedding: %w",
+			err,
+		)
+	}
+
+	return nil
 }
 
 // Reject moves the document back to rejected status.
@@ -204,11 +254,14 @@ func (s *Service) Search(
 	query string,
 ) ([]types.Document, error) {
 
+	query = strings.TrimSpace(query)
+
 	if query == "" {
 		return nil, fmt.Errorf("documents: search query is required")
 	}
 
-	vector, err := s.gemini.getEmbedding(ctx, query)
+	// Generate an embedding specifically for the search query.
+	vector, err := s.gemini.getQueryEmbedding(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"documents: embedding search query: %w",
@@ -216,7 +269,7 @@ func (s *Service) Search(
 		)
 	}
 
-	return s.repo.SearchByVector(ctx, vector, 10)
+	return s.repo.SearchByVector(ctx, vector, 5)
 }
 
 // GetFile returns the raw file bytes and MIME type for download/preview.

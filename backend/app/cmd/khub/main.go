@@ -64,7 +64,15 @@ func main() {
 	projectSvc := projects.NewService(projectRepo)
 
 	docRepo := documents.NewRepository(pg)
-	docSvc := documents.NewService(docRepo, uploadDir,geminiAPIKey)
+	docSvc, err := documents.NewService(
+		ctx,
+		docRepo,
+		uploadDir,
+		geminiAPIKey,
+	)
+	if err != nil {
+		log.Fatalf("documents service: %v", err)
+	}
 
 	authSvc := authz.NewService(authz.GoogleConfig{
 		ClientID:      clientID,

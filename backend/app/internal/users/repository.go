@@ -12,10 +12,6 @@ import (
 )
 
 
-// Repository is the Postgres-backed persistence layer for users. It takes a
-// *pgxpool.Pool via constructor injection so it can be swapped out (e.g. for
-// tests against a real test DB, or a different pool) without touching
-// callers.
 
 type Repository interface {
 	UpsertFromGoogle(ctx context.Context, sub, email, name, picture string) (*types.User, error)

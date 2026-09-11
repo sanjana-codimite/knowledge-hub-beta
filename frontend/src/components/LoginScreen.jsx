@@ -1,5 +1,3 @@
-// LoginScreen is shown when no session exists.
-// It renders the two-column layout: marketing intro + Google sign-in card.
 import { FcGoogle } from "react-icons/fc";
 
 const FEATURES = [

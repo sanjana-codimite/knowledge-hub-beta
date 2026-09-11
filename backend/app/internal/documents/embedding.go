@@ -153,8 +153,7 @@ func (g *geminiClient) getQueryEmbedding(
 	return embedding, nil
 }
 
-// extractText pulls plain text from a file based on its MIME type.
-// PDF text extraction is basic — replace with pdfcpu for better results.
+
 func extractText(path, mimeType string) (string, error) {
 	switch mimeType {
 
@@ -188,9 +187,7 @@ func extractText(path, mimeType string) (string, error) {
 	}
 }
 
-// extractPDFText does basic text extraction from PDF bytes.
-// It looks for text between BT (begin text) and ET (end text) markers.
-// Replace with a proper PDF library for production use.
+
 func extractPDFText(data []byte) string {
 	text := string(data)
 

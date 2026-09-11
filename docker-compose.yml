@@ -34,7 +34,7 @@ services:
 
   app:
     build:
-      context: .           # ← root, so Docker can see both frontend/ and backend/
+      context: .           
       dockerfile: Dockerfile
     container_name: khub-app
     restart: unless-stopped

@@ -1,6 +1,5 @@
 import { DocumentCard } from "./DocumentCard";
 
-// SearchView renders the hero search panel and the filtered document list.
 export function SearchView({
   query,
   onQuery,
@@ -14,10 +13,7 @@ export function SearchView({
 }) {
   return (
     <>
-      {/* hero-panel kept in CSS — glassmorphism + sheen animation.
-          eyebrow kept in CSS — used here, so it's not dead code (it only looked
-          unused in LoginScreen, where it was commented out). */}
-      <section className="hero-panel">
+          <section className="hero-panel">
         <span className="eyebrow">KNOWLEDGE HUB</span>
         <h1>{query ? `Results for "${query}"` : "What are you looking for?"}</h1>
         <p>Search across docs, READMEs, imported articles and accepted answers.</p>
@@ -37,8 +33,7 @@ export function SearchView({
           {loading ? "Searching..." : `${docs.length} results in `}
           {!loading && <b className="text-[#eef0ff]">{project}</b>}
         </span>
-        {/* filter-note: hidden below 520px via the existing App.css media query;
-            base typography added here since it previously had none */}
+        
         <span className="filter-note text-[rgba(238,240,255,0.45)] text-[11.5px] [font-family:'DM_Mono',monospace]">
           Current · Outdated · In review
         </span>

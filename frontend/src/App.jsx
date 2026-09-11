@@ -18,7 +18,7 @@ import { ReviewView }    from "./components/MyDocsReview";
 import { TagManagerModal } from "./components/TagManagerModal";
 
 import { listProjects }  from "./api/projects";
-import { useDocumentSearch } from "./hooks/useDocumentSearch";
+import { useDocumentSearch ,useDocumentCounts  } from "./hooks/useDocumentSearch";
 
 function App() {
   const { user, session, saveSession, busy, error, signIn, signOut } = useAuth();
@@ -33,7 +33,7 @@ function App() {
   const [panel,           setPanel]          = useState(null);
   const [toast,           setToast]          = useState("");
   const [showTagManager,  setShowTagManager] = useState(false);
-
+  const { counts, total } = useDocumentCounts(session, saveSession);
   // My Docs — only fetches when "mydocs" view is active
   const {
     myDocs,
@@ -118,6 +118,8 @@ function App() {
 
       <div className="relative z-[1] flex gap-[clamp(12px,2vw,22px)] max-w-[1560px] mx-auto px-[clamp(14px,2.4vw,28px)] py-[22px] max-[850px]:pt-[14px]">
         <Sidebar
+          counts={counts}
+          totalCount={total}
           open={sidebar}
           view={view}
           selectedProject={selectedProject}

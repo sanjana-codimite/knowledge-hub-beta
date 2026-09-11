@@ -1,15 +1,5 @@
 import { useState } from "react";
 
-/**
- * TagPicker — reusable tag selector with multi-select chips and inline create.
- *
- * Props:
- *   allTags        — array of { id, name } from the backend
- *   selectedNames  — array of selected tag name strings
- *   onChange        — (newSelectedNames: string[]) => void
- *   onCreateTag    — (name: string) => Promise<Tag>
- *   loading        — boolean, true while tags are being fetched
- */
 export function TagPicker({
   allTags = [],
   selectedNames = [],

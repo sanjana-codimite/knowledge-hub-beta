@@ -1,6 +1,6 @@
 // useDocumentSearch.js
 import { useEffect, useState } from "react";
-import { listPublishedDocuments, searchDocuments } from "../api/documents";
+import { listPublishedDocuments, searchDocuments,getDocumentCounts  } from "../api/documents";
 
 const SEARCH_DEBOUNCE_MS = 350;
 
@@ -51,4 +51,22 @@ export function useDocumentSearch(session, onSession, query, projectID, enabled)
   }, [session, query, projectID, enabled]); // ← projectID in deps
 
   return { docs, loading, error };
+}
+
+export function useDocumentCounts(session, saveSession) {
+  const [counts, setCounts] = useState({});  // { "project-uuid": 3 }
+  const [total, setTotal]   = useState(0);
+
+  useEffect(() => {
+    if (!session) return;
+    getDocumentCounts(session, saveSession)
+      .then((data) => {
+        setCounts(data || {});
+        // Total = sum of all project counts
+        setTotal(Object.values(data || {}).reduce((a, b) => a + b, 0));
+      })
+      .catch(console.error);
+  }, [session]);
+
+  return { counts, total };
 }

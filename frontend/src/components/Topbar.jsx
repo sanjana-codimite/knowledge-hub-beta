@@ -1,4 +1,3 @@
-// Topbar renders the top navigation bar: brand, search, upload button, avatar.
 export function Topbar({
   user,
   query,
@@ -11,8 +10,7 @@ export function Topbar({
 }) {
   return (
     <header className="topbar">
-      {/* icon-button has size/border/background in CSS but no centering, so the
-          glyph wasn't actually centered inside the square — added via Tailwind */}
+      
       <button
         className="icon-button menu grid place-items-center text-[15px]"
         onClick={onMenuToggle}
@@ -49,10 +47,7 @@ export function Topbar({
           ＋ Project
         </button>
 
-        {/* .avatar in App.css is missing centering, the gradient background, and initials
-            styling that an earlier (commented-out) version of that rule had — and
-            .avatar-image was never defined at all, so the photo had no sizing. Rebuilt
-            here in Tailwind instead of patching a CSS rule two other things may depend on. */}
+        
         <button
           className="w-10 h-10 rounded-full border-0 p-0 overflow-hidden cursor-pointer grid place-items-center bg-gradient-to-br from-[#a9b4ff] to-[#38d0d6] text-[#111426] text-[11px] font-bold flex-shrink-0 transition-[filter] hover:brightness-110"
           onClick={onSignOut}

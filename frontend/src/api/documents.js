@@ -43,6 +43,10 @@ export function listMyDocuments(session, onSession) {
   return request("/web/documents/mine", {}, session, onSession);
 }
 
+export function getDocumentCounts(session, onSession) {
+  return request("/web/documents/counts", {}, session, onSession);
+}
+
 // Get all documents for the search/browse view
 export function listPublishedDocuments(projectID, session, onSession) {
   const params = new URLSearchParams();

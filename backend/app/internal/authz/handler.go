@@ -11,9 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Handler holds the HTTP handlers for the authentication flow.
-// Each handler is a plain method so dependencies are injected once
-// at construction rather than read from package-level globals.
 type Handler struct {
 	authSvc *Service
 	redis   *redisRepository
@@ -29,10 +26,7 @@ func NewHandler(authSvc *Service, redis *store.RedisStore, userSvc *users.Servic
 	}
 }
 
-// GoogleLogin starts the OAuth2 flow.
-// Generates a CSRF state, saves it in Redis for 10 minutes,
-// then redirects the browser to Google's consent screen.
-//
+
 // GET /web/auth/google/login
 func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	state := uuid.NewString()
@@ -46,18 +40,6 @@ func (h *Handler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, h.authSvc.LoginURL(state), http.StatusFound)
 }
 
-// GoogleCallback handles the redirect back from Google after the user consents.
-//
-// Flow:
-//  1. Validate CSRF state against Redis
-//  2. Exchange authorization code for Google OAuth token
-//  3. Fetch user profile from Google userinfo endpoint
-//  4. Enforce codimiteinterns.com domain restriction
-//  5. Upsert user in Postgres (always role = 'user')
-//  6. Issue opaque access token + JWT refresh token
-//  7. Save opaque token in Redis
-//  8. Return JSON — the frontend popup reads this directly
-//
 // GET /web/auth/google/callback
 func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 	// 1. Validate CSRF state
@@ -146,18 +128,13 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 8. Return plain JSON.
-	// The Vite proxy keeps the popup on the same origin (localhost:5173)
-	// so the frontend can read popup.document.body.innerText directly.
 	writeJSON(w, http.StatusOK, map[string]any{
 		"user":   user,
 		"tokens": tokens,
 	})
 }
 
-// Refresh validates a JWT refresh token and issues a new access + refresh pair.
-// The old access token is left to expire naturally in Redis.
-//
+
 // POST /web/auth/refresh
 func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var body struct {
@@ -199,9 +176,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, tokens)
 }
 
-// Logout deletes the opaque access token from Redis immediately.
-// The refresh JWT expires naturally on its own schedule.
-//
+
 // POST /web/auth/logout
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	token := extractBearerToken(r)
@@ -211,10 +186,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Me returns the authenticated user's profile.
-// AuthContext is already attached by RequireAuth middleware —
-// no extra DB or Redis call needed.
-//
+
 // GET /web/auth/me
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	ac, ok := types.GetAuthContext(r.Context())

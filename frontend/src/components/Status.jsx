@@ -1,13 +1,3 @@
-// Status is a small badge used by DocumentCard, ThreadCard, and Panel.
-// It is a shared component because those three all need it.
-//
-// Rebuilt fully in Tailwind: the old version added a `status <slugified-label>`
-// class and relied on CSS (.current/.answered/.outdated/.open/.in-review) that
-// only matched a handful of exact labels. Callers like MyDocsView pass raw
-// values such as "draft", "in_review", "approved", "rejected" straight through,
-// so most badges were silently rendering with no color at all. This maps every
-// known status to the app's real palette and falls back gracefully for
-// anything unrecognized, instead of failing silently.
 const STATUS_STYLES = {
   current:   "text-[#8ff0c0] border-[rgba(95,227,161,0.4)] bg-[rgba(95,227,161,0.12)]",
   answered:  "text-[#8ff0c0] border-[rgba(95,227,161,0.4)] bg-[rgba(95,227,161,0.12)]",

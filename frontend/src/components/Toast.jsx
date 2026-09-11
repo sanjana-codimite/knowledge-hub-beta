@@ -10,8 +10,7 @@ export function Toast({ message, onClose, duration = 4000 }) {
   if (!message) return null;
 
   return (
-    // toast-card kept in CSS for position/@keyframes/shadow, but its own background
-    // (#1c1f26 flat slate) doesn't match the app's glass system — see note below.
+   
     <div className="toast-card">
       <div className="text-[1.1rem] text-[#a9b4ff] flex-shrink-0 mt-0.5">✦</div>
       <div className="flex-1 min-w-0">

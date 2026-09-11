@@ -3,14 +3,7 @@ import { getCurrentUser, getGoogleLoginUrl, logout } from "../api/auth";
 
 const SESSION_KEY = "atlas.session";
 const POPUP_TIMEOUT_MS = 120_000; 
-// useAuth manages the full authentication lifecycle:
-//   - Loading/persisting the session from localStorage
-//   - Fetching the user profile on mount
-//   - Google OAuth popup flow (signIn)
-//   - Logout
-//
-// Returns { user, session, busy, error, signIn, signOut }
-// which App.jsx spreads to child components as needed.
+
 export function useAuth() {
   const [session, setSession] = useState(() =>
     JSON.parse(localStorage.getItem(SESSION_KEY) || "null")
@@ -37,8 +30,7 @@ export function useAuth() {
       });
   }, [session]);
 
-  // signIn opens a Google OAuth popup, polls until it returns to our
-  // origin, reads the JSON response, and saves the session.
+
   const signIn = () => {
     setError("");
     setBusy(true);
@@ -73,8 +65,7 @@ export function useAuth() {
       }
 
       try {
-        // popup.location throws a cross-origin DOMException while on
-        // Google's domain. Once it's back on our origin we can read it.
+
         const href = popup.location.href;
         if (!href.startsWith(window.location.origin)) return;
 

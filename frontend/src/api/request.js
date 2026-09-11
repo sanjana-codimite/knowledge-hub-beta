@@ -1,11 +1,5 @@
-// Base API URL. Empty string means same origin (Go serves both frontend and API).
-// In development with separate servers set VITE_API_URL=http://localhost:8080
 export const API = import.meta.env.VITE_API_URL || "";
 
-
-// request() is the single function all API calls go through.
-// It attaches the Bearer token, and on 401 silently refreshes
-// the access token before retrying the original request once.
 export async function request(path, options = {}, session, onSession) {
   const headers = {
     "Content-Type": "application/json",

@@ -20,12 +20,7 @@ func NewHandler(svc *Service, userSvc *users.Service) *Handler {
 	return &Handler{svc: svc, userSvc: userSvc}
 }
 
-// Upload handles POST /web/documents/upload
-// Accepts multipart/form-data with fields:
-//   - file      — the PDF or MD file
-//   - title     — optional, defaults to filename
-//   - project_id — required
-//   - tags      — optional comma-separated tag names
+
 func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	ac, ok := types.GetAuthContext(r.Context())
 	if !ok {
@@ -99,8 +94,16 @@ func (h *Handler) ListAll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, docs)
 }
 
-// handler.go — ListPublished
-// GET /web/documents/published?project_id=uuid  (project_id is optional)
+func (h *Handler) Counts(w http.ResponseWriter, r *http.Request) {
+    counts, err := h.svc.CountPublishedByProject(r.Context())
+    if err != nil {
+        writeJSONError(w, http.StatusInternalServerError, "could not get counts")
+        return
+    }
+    writeJSON(w, http.StatusOK, counts)
+}
+
+
 func (h *Handler) ListPublished(w http.ResponseWriter, r *http.Request) {
     projectID := r.URL.Query().Get("project_id")
     docs, err := h.svc.ListPublished(r.Context(), projectID)
@@ -137,8 +140,7 @@ func (h *Handler) RemoveReviewer(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusNoContent)
 }
 
-// ListMine handles GET /web/documents/mine
-// Returns only the authenticated user's uploaded documents.
+
 func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 	ac, ok := types.GetAuthContext(r.Context())
 	if !ok {
@@ -153,8 +155,7 @@ func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, docs)
 }
 
-// ListForReview handles GET /web/documents/review
-// Returns documents assigned to the authenticated user for review.
+
 func (h *Handler) ListForReview(w http.ResponseWriter, r *http.Request) {
 	ac, ok := types.GetAuthContext(r.Context())
 	if !ok {
@@ -169,8 +170,7 @@ func (h *Handler) ListForReview(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, docs)
 }
 
-// AssignReviewer handles PATCH /web/documents/{id}/reviewer
-// Body: { "reviewer_id": "uuid" }
+
 func (h *Handler) AssignReviewer(w http.ResponseWriter, r *http.Request) {
 	ac, ok := types.GetAuthContext(r.Context())
 	if !ok {
@@ -209,8 +209,7 @@ func (h *Handler) AssignReviewer(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Approve handles PATCH /web/documents/{id}/approve
-// Only the assigned reviewer can call this.
+
 func (h *Handler) Approve(w http.ResponseWriter, r *http.Request) {
 	ac, ok := types.GetAuthContext(r.Context())
 	if !ok {
@@ -272,8 +271,7 @@ func (h *Handler) Reject(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetFile handles GET /web/documents/{id}/file
-// Streams the raw file back to the client for preview/download.
+
 func (h *Handler) GetFile(w http.ResponseWriter, r *http.Request) {
 	docID := extractDocID(r.URL.Path, "/file")
 	if docID == "" {
@@ -296,10 +294,7 @@ func (h *Handler) GetFile(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-// ── Tags ─────────────────────────────────────────────────────────────────────
 
-// CreateTag handles POST /web/tags
-// Body: { "name": "oncall" }
 func (h *Handler) CreateTag(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name string `json:"name"`
@@ -388,10 +383,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
     writeJSON(w, http.StatusOK, docs)
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
-// extractDocID pulls the UUID from a path like /web/documents/{id}/approve
-// by stripping the known suffix.
 func extractDocID(path, suffix string) string {
 	// path: /web/documents/uuid-here/approve
 	// strip suffix first, then take the last segment

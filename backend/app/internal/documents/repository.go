@@ -27,7 +27,7 @@ type Repository interface {
     SaveEmbedding(ctx context.Context, docID string, vector []float32) error
 	SearchByVector(ctx context.Context, vector []float32, limit int) ([]types.Document, error)
 	RemoveReviewer(ctx context.Context, docID string) error
-	
+	CountPublishedByProject(ctx context.Context) (map[string]int, error)
 	// Tag operations
 	CreateTag(ctx context.Context, name string) (*types.Tag, error)
 	ListTags(ctx context.Context) ([]types.Tag, error)
@@ -397,4 +397,29 @@ func (r *postgresRepository) ListUsers(ctx context.Context, currentUserID string
 	}
 
 	return users, rows.Err()
+}
+
+func (r *postgresRepository) CountPublishedByProject(ctx context.Context) (map[string]int, error) {
+    const q = `
+        SELECT project_id::text, COUNT(*) 
+        FROM documents 
+        WHERE status = 'published'
+        GROUP BY project_id
+    `
+    rows, err := r.db.Query(ctx, q)
+    if err != nil {
+        return nil, fmt.Errorf("documents: count by project: %w", err)
+    }
+    defer rows.Close()
+
+    counts := make(map[string]int)
+    for rows.Next() {
+        var projectID string
+        var count int
+        if err := rows.Scan(&projectID, &count); err != nil {
+            return nil, err
+        }
+        counts[projectID] = count
+    }
+    return counts, rows.Err()
 }

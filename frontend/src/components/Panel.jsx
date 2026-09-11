@@ -20,11 +20,6 @@ const SECONDARY_BTN =
   "h-[42px] px-[19px] rounded-[14px] border border-[color:var(--line)] bg-[rgba(255,255,255,0.07)] text-[13.5px] font-semibold hover:bg-[rgba(255,255,255,0.12)] transition-colors";
 const ACTIONS_ROW = "flex justify-end gap-[10px] mt-[22px]";
 
-// Panel is the slide-over detail panel. It handles four content types:
-//   - A document (has doc.type)
-//   - A thread (has thread.title, no type)
-//   - "ask"    — ask the team form
-//   - "upload" — add a source form
 export function Panel({ data, projects, onProjectCreated, close, session, onSession, onDocUploaded }) {
   const isDoc = Boolean(data.type);
   const isThread = Boolean(data.title) && !isDoc;

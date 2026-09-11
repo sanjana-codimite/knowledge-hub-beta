@@ -38,8 +38,6 @@ export function ReviewerPicker({ doc, users, session, onSession, onUpdated }) {
 
   return (
     <div className="relative">
-      {/* Show current reviewer or assign button — retheme to the app's success-green,
-          matching the "current" status pill instead of the old unrelated dark-green/slate */}
       {currentReviewer ? (
         <div className="flex items-center gap-2 bg-[rgba(95,227,161,0.12)] border border-[rgba(95,227,161,0.35)] rounded-full py-1 px-2.5 pl-1">
           <UserAvatar user={currentReviewer} size={28} />

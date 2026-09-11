@@ -103,8 +103,7 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-// mustEnv reads an env var and exits immediately if it is not set.
-// This ensures misconfigured deployments fail at startup, not mid-request.
+
 func mustEnv(key string) string {
 	v := os.Getenv(key)
 	if v == "" {

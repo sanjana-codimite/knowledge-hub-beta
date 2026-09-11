@@ -13,8 +13,7 @@ import (
 	"github.com/codimite-learning/knowledge-hub/internal/pkg/types"
 )
 
-// Service is the business-logic layer for documents.
-// uploadDir is the local directory where uploaded files are saved.
+
 type Service struct {
 	repo      Repository
 	uploadDir string
@@ -40,18 +39,14 @@ func NewService(
 	}, nil
 }
 
-// Upload validates the file type, saves it to disk, and creates
-// a document record in Postgres with status = draft.
+
 func (s *Service) Upload(
 	ctx context.Context,
 	file io.Reader,
 	filename, mimeType, title, projectID, uploaderID string,
 ) (*types.Document, error) {
 
-	// Validate MIME type — only PDF and Markdown allowed
 	if !types.AllowedMimeTypes[mimeType] {
-		// Also check by file extension for .md files which browsers
-		// sometimes report as text/plain
 		ext := strings.ToLower(filepath.Ext(filename))
 		if ext != ".md" && ext != ".markdown" {
 			return nil, ErrInvalidMimeType
@@ -162,6 +157,10 @@ func (s *Service) ListAll(ctx context.Context) ([]types.Document, error) {
 
 func (s *Service) ListPublished(ctx context.Context, projectID string) ([]types.Document, error) {
     return s.repo.ListPublished(ctx, projectID)
+}
+
+func (s *Service) CountPublishedByProject(ctx context.Context) (map[string]int, error) {
+    return s.repo.CountPublishedByProject(ctx)
 }
 
 // ListMine returns documents uploaded by the given user (dashboard view).

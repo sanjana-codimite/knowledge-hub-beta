@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import { listTags, createTag } from "../api/tags";
 
-/**
- * TagManagerModal — full-screen modal for managing tags.
- * Opened from the topbar "Tags" button.
- */
+
 export function TagManagerModal({ session, onSession, onClose }) {
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +62,7 @@ export function TagManagerModal({ session, onSession, onClose }) {
 
   return (
     <div className="panel-layer modal-layer" onClick={onClose}>
-      {/* tag-manager-modal kept in CSS for max-width; modal-panel kept for glassmorphism */}
+      
       <section
         className="detail-panel modal-panel tag-manager-modal"
         onClick={(e) => e.stopPropagation()}
@@ -109,9 +106,7 @@ export function TagManagerModal({ session, onSession, onClose }) {
 
           {error && <div className="error-message">{error}</div>}
 
-          {/* Existing tags label — .tag-manager-label was referenced but never
-              defined in App.css, so this rendered as plain unstyled text.
-              Styled here in Tailwind to match the app's .side-label pattern. */}
+         
           <div className="mt-6 mb-2 text-[11px] tracking-[0.12em] uppercase text-[rgba(238,240,255,0.42)]">
             Existing tags ({tags.length})
           </div>

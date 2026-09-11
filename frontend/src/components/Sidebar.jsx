@@ -24,8 +24,10 @@ export function Sidebar({
   reviewDocs,
   onView,
   onProject,
-   selectedProject,   // ← add
+  selectedProject,   // ← add
   publishedDocs,     // ← add
+  counts={},            // ← add
+  totalCount=0,        // ← add
 }) {
   const close = (fn) => () => fn();
 
@@ -94,12 +96,12 @@ export function Sidebar({
             onClick={close(() => onProject(item.id ? item : null))}
           >
             <span className="project-dot" data-project={item.name} />
-            {item.name}
-            <small>
-              {item.name === "All projects"
-                ? publishedDocumentItems.length
-                : publishedDocumentItems.filter((d) => d.project_id === item.id).length}
-            </small>
+        {item.name}
+        <small>
+          {item.name === "All projects"
+            ? totalCount
+            : (counts[item.id] || 0)}
+        </small>
           </button>
         ))
       )}

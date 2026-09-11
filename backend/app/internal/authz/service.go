@@ -22,9 +22,7 @@ type GoogleConfig struct {
 	AllowedDomain string // only this Google Workspace domain may log in
 }
 
-// Service handles Google OAuth, domain validation, and token issuance.
-// It owns no state beyond configuration — all persistence goes through
-// the Redis and Postgres stores injected into the HTTP handlers.
+
 type Service struct {
 	config          GoogleConfig
 	oauth           *oauth2.Config
@@ -50,9 +48,6 @@ func NewService(cfg GoogleConfig, jwtSecret string) *Service {
 	}
 }
 
-// AccessTokenTTL returns the TTL for opaque access tokens.
-// Handlers call this when saving the token to Redis so the TTL is
-// always consistent with what BuildAuthTokens reports in ExpiresIn.
 func (s *Service) AccessTokenTTL() time.Duration {
 	return s.accessTokenTTL
 }
@@ -71,17 +66,12 @@ func (s *Service) Exchange(ctx context.Context, code string) (*oauth2.Token, err
 	return s.oauth.Exchange(ctx, code)
 }
 
-// OAuthClient returns an HTTP client that attaches the OAuth2 token to requests.
-// Used to call the Google userinfo endpoint after a successful exchange.
 func (s *Service) OAuthClient(ctx context.Context, token *oauth2.Token) interface {
 	Get(url string) (interface{}, error)
 } {
 	return nil // replaced by direct oauth config usage in handler — see handler.go
 }
 
-// IsAllowedEmail validates that the email belongs to the allowed domain.
-// This is the server-side domain restriction — it runs against the email
-// returned by Google's userinfo endpoint, which is already authenticated.
 func (s *Service) IsAllowedEmail(email string) bool {
 	if s.config.AllowedDomain == "" {
 		return true
@@ -90,8 +80,7 @@ func (s *Service) IsAllowedEmail(email string) bool {
 	return strings.HasSuffix(email, "@"+strings.ToLower(s.config.AllowedDomain))
 }
 
-// GenerateOpaqueToken creates a cryptographically random, URL-safe token
-// with 256 bits of entropy. It carries no user information itself.
+
 func (s *Service) GenerateOpaqueToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -100,9 +89,7 @@ func (s *Service) GenerateOpaqueToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-// GenerateRefreshToken creates a signed JWT refresh token for the given user.
-// The token's subject is the user's UUID so it can be resolved back to a
-// user record when the access token needs to be refreshed.
+
 func (s *Service) GenerateRefreshToken(user types.User) (string, error) {
 	claims := jwt.RegisteredClaims{
 		Subject:   user.ID,
@@ -118,9 +105,7 @@ func (s *Service) GenerateRefreshToken(user types.User) (string, error) {
 	return signed, nil
 }
 
-// ParseRefreshToken validates and parses a JWT refresh token.
-// Returns an error if the token is expired, tampered with, or uses
-// an unexpected signing method.
+
 func (s *Service) ParseRefreshToken(tokenString string) (*jwt.RegisteredClaims, error) {
 	token, err := jwt.ParseWithClaims(
 		tokenString,
@@ -142,9 +127,7 @@ func (s *Service) ParseRefreshToken(tokenString string) (*jwt.RegisteredClaims, 
 	return claims, nil
 }
 
-// BuildAuthTokens generates both an opaque access token and a JWT refresh token.
-// ExpiresIn reflects the access token TTL — the value the frontend uses to
-// know when to call /web/auth/refresh.
+
 func (s *Service) BuildAuthTokens(user types.User) (*types.AuthTokens, error) {
 	opaque, err := s.GenerateOpaqueToken()
 	if err != nil {

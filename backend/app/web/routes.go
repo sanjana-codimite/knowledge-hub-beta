@@ -38,6 +38,13 @@ func (a *App) Router() *http.ServeMux {
 		}
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}))
+	mux.HandleFunc("/web/documents/published", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+    if r.Method == http.MethodGet {
+        a.docHandler.ListPublished(w, r)
+        return
+    }
+    http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+}))
 	mux.HandleFunc("/web/documents", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			a.docHandler.ListAll(w, r)

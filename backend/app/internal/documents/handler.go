@@ -99,6 +99,18 @@ func (h *Handler) ListAll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, docs)
 }
 
+// handler.go — ListPublished
+// GET /web/documents/published?project_id=uuid  (project_id is optional)
+func (h *Handler) ListPublished(w http.ResponseWriter, r *http.Request) {
+    projectID := r.URL.Query().Get("project_id")
+    docs, err := h.svc.ListPublished(r.Context(), projectID)
+    if err != nil {
+        writeJSONError(w, http.StatusInternalServerError, "could not list documents")
+        return
+    }
+    writeJSON(w, http.StatusOK, docs)
+}
+
 // RemoveReviewer handles DELETE /web/documents/{id}/reviewer
 func (h *Handler) RemoveReviewer(w http.ResponseWriter, r *http.Request) {
     ac, ok := types.GetAuthContext(r.Context())

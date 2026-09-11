@@ -44,8 +44,11 @@ export function listMyDocuments(session, onSession) {
 }
 
 // Get all documents for the search/browse view
-export function listAllDocuments(session, onSession) {
-  return request("/web/documents", {}, session, onSession);
+export function listPublishedDocuments(projectID, session, onSession) {
+  const params = new URLSearchParams();
+  if (projectID) params.set("project_id", projectID);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  return request(`/web/documents/published${qs}`, {}, session, onSession);
 }
 
 export function listForReview(session, onSession) {
@@ -128,9 +131,11 @@ export async function getDocumentFileURL(docId, session, onSession) {
 }
 
 // Search documents by keyword using vector similarity
-export function searchDocuments(query, session, onSession) {
+export function searchDocuments(query, projectID, session, onSession) {
+  const params = new URLSearchParams({ q: query });
+  if (projectID) params.set("project_id", projectID);
   return request(
-    `/web/documents/search?q=${encodeURIComponent(query)}`,
+    `/web/documents/search?${params.toString()}`,
     {},
     session,
     onSession

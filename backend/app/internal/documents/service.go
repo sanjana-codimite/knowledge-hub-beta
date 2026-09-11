@@ -160,6 +160,10 @@ func (s *Service) ListAll(ctx context.Context) ([]types.Document, error) {
 	return docs, nil
 }
 
+func (s *Service) ListPublished(ctx context.Context, projectID string) ([]types.Document, error) {
+    return s.repo.ListPublished(ctx, projectID)
+}
+
 // ListMine returns documents uploaded by the given user (dashboard view).
 func (s *Service) ListMine(ctx context.Context, userID string) ([]types.Document, error) {
 	docs, err := s.repo.ListByUploader(ctx, userID)

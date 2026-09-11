@@ -1,13 +1,13 @@
+// useDocumentSearch.js
 import { useEffect, useState } from "react";
-import { listAllDocuments, searchDocuments } from "../api/documents";
+import { listPublishedDocuments, searchDocuments } from "../api/documents";
 
 const SEARCH_DEBOUNCE_MS = 350;
 
-// Loads the browse list immediately and debounces requests made for a query.
-export function useDocumentSearch(session, onSession, query, enabled) {
-  const [docs, setDocs] = useState([]);
+export function useDocumentSearch(session, onSession, query, projectID, enabled) {
+  const [docs, setDocs]       = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]     = useState("");
 
   useEffect(() => {
     if (!session || !enabled) return;
@@ -18,11 +18,19 @@ export function useDocumentSearch(session, onSession, query, enabled) {
     setError("");
 
     const timeoutId = setTimeout(() => {
-      const request = trimmedQuery
-        ? searchDocuments(trimmedQuery, session, onSession)
-        : listAllDocuments(session, onSession);
+      let apiCall;
 
-      request
+      if (trimmedQuery) {
+        // Vector search — pass project_id as query param
+        const params = new URLSearchParams({ q: trimmedQuery });
+        if (projectID) params.set("project_id", projectID);
+        apiCall = searchDocuments(trimmedQuery, projectID, session, onSession);
+      } else {
+        // Browse published docs — pass project_id as query param
+        apiCall = listPublishedDocuments(projectID, session, onSession);
+      }
+
+      apiCall
         .then((results) => {
           if (active) setDocs(Array.isArray(results) ? results : []);
         })
@@ -32,13 +40,15 @@ export function useDocumentSearch(session, onSession, query, enabled) {
         .finally(() => {
           if (active) setLoading(false);
         });
+
     }, trimmedQuery ? SEARCH_DEBOUNCE_MS : 0);
 
     return () => {
       active = false;
       clearTimeout(timeoutId);
     };
-  }, [session, query, enabled]);
+
+  }, [session, query, projectID, enabled]); // ← projectID in deps
 
   return { docs, loading, error };
 }

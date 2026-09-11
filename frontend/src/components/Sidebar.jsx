@@ -18,20 +18,25 @@ function NavButton({ icon, label, count, active, onClick }) {
 export function Sidebar({
   open,
   view,
-  project,
   projects,
   loadingProjects,
   myDocs,
   reviewDocs,
   onView,
   onProject,
+   selectedProject,   // ← add
+  publishedDocs,     // ← add
 }) {
   const close = (fn) => () => fn();
 
   // Safe fallbacks so counts never crash on first render before data loads
-  const myDocsCount    = Array.isArray(myDocs)    ? myDocs.length    : 0;
-  const reviewCount    = Array.isArray(reviewDocs) ? reviewDocs.length : 0;
-  const projectItems   = [{ id: "all", name: "All projects" }, ...(projects || [])];
+  const myDocsCount = Array.isArray(myDocs) ? myDocs.length : 0;
+  const reviewCount = Array.isArray(reviewDocs) ? reviewDocs.length : 0;
+   const publishedDocumentItems = Array.isArray(publishedDocs) ? publishedDocs : [];
+   const projectItems = [
+     { id: null, name: "All projects" },
+     ...(Array.isArray(projects) ? projects : []),
+  ];
 
   return (
     <aside className={`sidebar ${open ? "open" : ""}`}>
@@ -82,16 +87,18 @@ export function Sidebar({
       ) : (
         projectItems.map((item) => (
           <button
-            key={item.id}
-            className={`project-link ${project === item.name ? "active" : ""}`}
-            onClick={close(() => onProject(item.name))}
+            key={item.id || "all"}
+            className={`project-link ${
+              (selectedProject?.id || null) === item.id ? "active" : ""
+            }`}
+            onClick={close(() => onProject(item.id ? item : null))}
           >
             <span className="project-dot" data-project={item.name} />
             {item.name}
             <small>
               {item.name === "All projects"
-                ? mockDocs.length
-                : mockDocs.filter((d) => d.project === item.name).length}
+                ? publishedDocumentItems.length
+                : publishedDocumentItems.filter((d) => d.project_id === item.id).length}
             </small>
           </button>
         ))
@@ -99,7 +106,9 @@ export function Sidebar({
 
       <div className="sync-card">
         <div>
-          <b>Drive sync <span className="online" /></b>
+          <b>
+            Drive sync <span className="online" />
+          </b>
           <p>3 folders · last synced 12 min ago</p>
           <button onClick={() => onView("sources")}>Manage sources</button>
         </div>

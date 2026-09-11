@@ -20,6 +20,8 @@ type Repository interface {
 	ListAll(ctx context.Context) ([]types.Document, error)
 	ListByUploader(ctx context.Context, userID string) ([]types.Document, error)
 	ListByReviewer(ctx context.Context, reviewerID string) ([]types.Document, error)
+	// Add this to the Repository interface
+	ListPublished(ctx context.Context, projectID string) ([]types.Document, error)
 	UpdateStatus(ctx context.Context, id string, status types.DocumentStatus) error
 	AssignReviewer(ctx context.Context, docID, reviewerID string) error
     SaveEmbedding(ctx context.Context, docID string, vector []float32) error
@@ -268,6 +270,18 @@ func (r *postgresRepository) SearchByVector(
 }
 
 // ── Tags ─────────────────────────────────────────────────────────────────────
+
+func (r *postgresRepository) ListPublished(ctx context.Context, projectID string) ([]types.Document, error) {
+    if projectID != "" {
+        return r.listDocs(ctx,
+            selectDocs+` WHERE status = 'published' AND project_id = $1 ORDER BY created_at DESC`,
+            projectID,
+        )
+    }
+    return r.listDocs(ctx,
+        selectDocs+` WHERE status = 'published' ORDER BY created_at DESC`,
+    )
+}
 
 func (r *postgresRepository) CreateTag(ctx context.Context, name string) (*types.Tag, error) {
 	const q = `

@@ -26,7 +26,7 @@ function App() {
 
   const [view,            setView]           = useState("search");
   const [query,           setQuery]          = useState("");
-  const [project,         setProject]        = useState("All projects");
+  const [selectedProject, setSelectedProject] = useState(null);
   const [projects,        setProjects]       = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [sidebar,         setSidebar]        = useState(false);
@@ -50,11 +50,12 @@ function App() {
     removeDoc,
   } = useDocsForReview(session, saveSession, view === "my-reviews");
 
+  
   const {
     docs: searchDocs,
     loading: searchLoading,
     error: searchError,
-  } = useDocumentSearch(session, saveSession, query, view === "search");
+  } = useDocumentSearch(session, saveSession, query, selectedProject?.id || "", view === "search");
 
   // Load projects once when session is available
   useEffect(() => {
@@ -77,11 +78,11 @@ function App() {
     setView("search");
   };
 
-  const handleProject = (selectedProject) => {
-    setProject(selectedProject);
+  const handleProject = (projectItem) => {
+    setSelectedProject(projectItem);
     setView("search");
     setSidebar(false);
-  };
+  }; 
 
   const handleProjectCreated = (createdProject) => {
     setProjects((current) => [...current, createdProject]);
@@ -119,11 +120,12 @@ function App() {
         <Sidebar
           open={sidebar}
           view={view}
-          project={project}
+          selectedProject={selectedProject}
           projects={projects}
           loadingProjects={loadingProjects}
           myDocs={myDocs}
           reviewDocs={reviewDocs}
+          publishedDocs={searchDocs}
           onView={handleView}
           onProject={handleProject}
         />
@@ -133,7 +135,7 @@ function App() {
             <SearchView
               query={query}
               onQuery={handleQuery}
-              project={project}
+              project={selectedProject?.name || "All projects"} 
               docs={searchDocs}
               loading={searchLoading}
               error={searchError}

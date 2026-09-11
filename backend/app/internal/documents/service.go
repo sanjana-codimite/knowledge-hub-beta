@@ -136,19 +136,52 @@ func (s *Service) RemoveReviewer(ctx context.Context, docID, requesterID string)
 	return s.repo.RemoveReviewer(ctx, docID)
 }
 
+// hydrateTags fetches and attaches tags for each document in the slice.
+func (s *Service) hydrateTags(ctx context.Context, docs []types.Document) error {
+	for i := range docs {
+		tags, err := s.repo.GetDocumentTags(ctx, docs[i].ID)
+		if err != nil {
+			return err
+		}
+		docs[i].Tags = tags
+	}
+	return nil
+}
+
 // ListAll returns all documents (for browsing published docs).
 func (s *Service) ListAll(ctx context.Context) ([]types.Document, error) {
-	return s.repo.ListAll(ctx)
+	docs, err := s.repo.ListAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.hydrateTags(ctx, docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
 }
 
 // ListMine returns documents uploaded by the given user (dashboard view).
 func (s *Service) ListMine(ctx context.Context, userID string) ([]types.Document, error) {
-	return s.repo.ListByUploader(ctx, userID)
+	docs, err := s.repo.ListByUploader(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.hydrateTags(ctx, docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
 }
 
 // ListForReview returns documents assigned to the given reviewer.
 func (s *Service) ListForReview(ctx context.Context, reviewerID string) ([]types.Document, error) {
-	return s.repo.ListByReviewer(ctx, reviewerID)
+	docs, err := s.repo.ListByReviewer(ctx, reviewerID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.hydrateTags(ctx, docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
 }
 
 // AssignReviewer sets the reviewer on a document and moves it to in_review.
@@ -269,7 +302,14 @@ func (s *Service) Search(
 		)
 	}
 
-	return s.repo.SearchByVector(ctx, vector, 5)
+	docs, err := s.repo.SearchByVector(ctx, vector, 5)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.hydrateTags(ctx, docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
 }
 
 // GetFile returns the raw file bytes and MIME type for download/preview.

@@ -5,7 +5,7 @@ export async function uploadProjectDocument(file, fields, session, onSession) {
     const body = new FormData();
     body.append("file", file, file.name);
     Object.entries(fields).forEach(([key, value]) => {
-      if (value) body.append(key, value);
+      if (value != null && value !== "") body.append(key, value);
     });
 
     return fetch(`${API}/web/documents/upload`, {
@@ -136,4 +136,3 @@ export function searchDocuments(query, session, onSession) {
     onSession
   );
 }
-

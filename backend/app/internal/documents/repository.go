@@ -296,8 +296,8 @@ func (r *postgresRepository) GetTagByName(ctx context.Context, name string) (*ty
 	return &t, nil
 }
 
-func (r *postgresRepository) ListTags(ctx context.Context) ([]types.Tag, error) {
-	rows, err := r.db.Query(ctx, `SELECT id, name, created_at FROM tags ORDER BY name`)
+func (r *postgresRepository) ListTags(ctx context.Context) ([]types.Tag, error) { 
+	rows, err := r.db.Query(ctx, `SELECT id, name, created_at FROM tags`)
 	if err != nil {
 		return nil, fmt.Errorf("tags: list: %w", err)
 	}

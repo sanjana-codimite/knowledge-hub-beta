@@ -12,26 +12,17 @@ export function MyDocsView({
   users,
 }) {
   const [docs, setDocs] = useState([]);
-
-  // Preview state
   const [previewURL, setPreviewURL] = useState(null);
   const [previewMime, setPreviewMime] = useState("");
   const [previewName, setPreviewName] = useState("");
 
-  // Keep local docs state synchronized with the parent/hook
   useEffect(() => {
     setDocs(myDocs);
   }, [myDocs]);
 
-  // Open document preview
   const handlePreview = async (doc) => {
     try {
-      const url = await getDocumentFileURL(
-        doc.id,
-        session,
-        onSession
-      );
-
+      const url = await getDocumentFileURL(doc.id, session, onSession);
       setPreviewURL(url);
       setPreviewMime(doc.mime_type);
       setPreviewName(doc.title || doc.filename);
@@ -40,88 +31,87 @@ export function MyDocsView({
     }
   };
 
-  // Called by ReviewerPicker when reviewer is assigned or removed
   const handleDocUpdated = (updatedDoc) => {
     setDocs((prev) =>
-      prev.map((d) =>
-        d.id === updatedDoc.id ? updatedDoc : d
-      )
+      prev.map((d) => (d.id === updatedDoc.id ? updatedDoc : d)),
     );
   };
 
-  // Loading state
-  if (loading) {
+  if (loading)
     return (
-      <div className="my-docs-empty">
+      <div className="py-12 px-6 text-center text-[rgba(238,240,255,0.5)]">
         Loading your documents...
       </div>
     );
-  }
-
-  // Error state
-  if (error) {
+  if (error)
     return (
-      <div className="my-docs-empty">
+      <div className="py-12 px-6 text-center text-[rgba(238,240,255,0.5)]">
         {error}
       </div>
     );
-  }
-
-  // Empty state
-  if (!docs.length) {
+  if (!docs.length)
     return (
-      <div className="my-docs-empty">
-        <p>You haven't uploaded any documents yet.</p>
+      <div className="py-12 px-6 text-center text-[rgba(238,240,255,0.5)]">
+        <p>You haven&apos;t uploaded any documents yet.</p>
       </div>
     );
-  }
 
   return (
-    <div className="my-docs-view">
-      <div className="page-title">
+    <div className="p-6">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h2>My Documents</h2>
-          <p>
-            Documents you have uploaded. Assign a reviewer to
-            start the approval process.
+          <h2 className="m-0 text-[22px] font-bold tracking-[-0.02em] text-[#eef0ff]">
+            My Documents
+          </h2>
+          <p className="mt-1.5 text-sm text-[rgba(238,240,255,0.6)]">
+            Documents you have uploaded. Assign a reviewer to start the approval
+            process.
           </p>
         </div>
       </div>
 
-      <div className="my-docs-list">
+      <div className="flex flex-col gap-3 mt-4">
         {docs.map((doc) => (
-          <div key={doc.id} className="my-doc-card">
-            {/* Document information */}
-            <div className="my-doc-info">
+          // row styled to match the app's glass-card system (same gradient/blur/shadow as .document-card)
+          <div
+            key={doc.id}
+            className="flex items-center justify-between gap-4 px-4 py-3.5 rounded-[20px] border border-white/[0.13] bg-gradient-to-br from-white/[0.12] to-white/[0.045] backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_16px_40px_rgba(0,0,0,0.26)]"
+          >
+            {/* Doc info */}
+            <div className="flex items-center gap-3 min-w-0">
+              {/* doc-icon kept in CSS — glass bg */}
               <span className="doc-icon">
-                {doc.mime_type === "application/pdf"
-                  ? "▤"
-                  : "›_"}
+                {doc.mime_type === "application/pdf" ? "▤" : "›_"}
               </span>
 
-              <div className="my-doc-meta">
-                <b>{doc.title || doc.filename}</b>
-
-                <small>
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <b className="text-[0.9rem] text-[#eef0ff] truncate">
+                  {doc.title || doc.filename}
+                </b>
+                <small className="text-xs text-[rgba(238,240,255,0.5)] truncate">
                   {doc.filename} · {doc.mime_type}
                 </small>
+                {doc.tags && doc.tags.length > 0 && (
+                  <span className="flex flex-wrap gap-[5px] mt-0.5">
+                    {doc.tags.map((tag) => (
+                      <span key={tag.id} className="doc-tag-chip">
+                        #{tag.name}
+                      </span>
+                    ))}
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Document actions */}
-            <div className="my-doc-actions">
-              {/* Status */}
+            {/* Actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Status label={doc.status} />
-
-              {/* View / Preview */}
               <button
                 className="secondary-action"
                 onClick={() => handlePreview(doc)}
               >
                 View
               </button>
-
-              {/* Reviewer picker */}
               {(doc.status === "draft" ||
                 doc.status === "rejected" ||
                 doc.status === "in_review") && (
@@ -138,27 +128,19 @@ export function MyDocsView({
         ))}
       </div>
 
-      {/* File preview modal */}
+      {/* File preview modal — matches the app's slide-panel glass style */}
       {previewURL && (
         <div
-          className="preview-overlay"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9000] flex items-center justify-center"
           onClick={() => setPreviewURL(null)}
         >
           <div
-            className="preview-modal"
+            className="bg-gradient-to-b from-[rgba(22,24,44,0.94)] to-[rgba(12,13,26,0.97)] backdrop-blur-2xl backdrop-saturate-150 border border-white/[0.14] shadow-[0_30px_80px_rgba(0,0,0,0.55)] rounded-2xl w-[80vw] h-[85vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Preview header */}
-            <div className="preview-header">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.12] text-[0.9rem] text-[#eef0ff]">
               <span>{previewName}</span>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                }}
-              >
-                {/* Download */}
+              <div className="flex gap-2">
                 <a
                   className="secondary-action"
                   href={previewURL}
@@ -166,10 +148,8 @@ export function MyDocsView({
                 >
                   Download
                 </a>
-
-                {/* Close */}
                 <button
-                  className="toast-close"
+                  className="bg-transparent border-0 text-[rgba(238,240,255,0.45)] text-[1.1rem] cursor-pointer leading-none p-0 flex-shrink-0 transition-colors hover:text-[#a9b4ff]"
                   onClick={() => setPreviewURL(null)}
                 >
                   ×
@@ -177,15 +157,13 @@ export function MyDocsView({
               </div>
             </div>
 
-            {/* PDF preview */}
             {previewMime === "application/pdf" ? (
               <iframe
                 src={previewURL}
                 title={previewName}
-                className="preview-frame"
+                className="flex-1 w-full border-0 bg-white"
               />
             ) : (
-              /* Markdown preview */
               <MarkdownPreview url={previewURL} />
             )}
           </div>
@@ -195,24 +173,22 @@ export function MyDocsView({
   );
 }
 
-// MarkdownPreview fetches the file and displays it as text
 function MarkdownPreview({ url }) {
   const [text, setText] = useState("");
 
   useEffect(() => {
     fetch(url)
       .then((response) => {
-        if (!response.ok) {
-          throw new Error("Failed to load file");
-        }
-
+        if (!response.ok) throw new Error("Failed to load file");
         return response.text();
       })
       .then(setText)
-      .catch(() => {
-        setText("Could not load file.");
-      });
+      .catch(() => setText("Could not load file."));
   }, [url]);
 
-  return <pre className="md-preview">{text}</pre>;
+  return (
+    <pre className="flex-1 p-6 overflow-auto text-[0.9rem] text-[rgba(238,240,255,0.65)] whitespace-pre-wrap break-words [font-family:'DM_Mono',monospace]">
+      {text}
+    </pre>
+  );
 }

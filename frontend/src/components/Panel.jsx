@@ -2,21 +2,50 @@ import { useEffect, useState } from "react";
 import { Status } from "./Status";
 import { uploadProjectDocument } from "../api/documents";
 import { createProject as createProjectRequest, listProjects } from "../api/projects";
+import { listTags, createTag } from "../api/tags";
+import { TagPicker } from "./TagPicker";
+
+// --- shared style tokens (kept as constants so every panel stays consistent) ---
+const KICKER = "font-['DM_Mono',monospace] text-[11.5px] text-[rgba(238,240,255,0.5)]";
+const SECTION_HEADING = "m-0 mt-[30px] text-[11px] font-normal tracking-[0.12em] uppercase text-[rgba(238,240,255,0.46)]";
+const FIELD_LABEL = "block mt-[17px] mb-2 text-[11px] tracking-[0.12em] uppercase text-[rgba(238,240,255,0.48)]";
+const PANEL_INPUT =
+  "w-full h-11 px-4 rounded-xl border border-[color:var(--line)] bg-[rgba(255,255,255,0.07)] outline-none text-[color:var(--ink)] text-[13.5px] placeholder:text-[rgba(238,240,255,0.42)] focus:border-[rgba(169,180,255,0.55)] focus:bg-[rgba(255,255,255,0.11)] transition-colors";
+const TEXTAREA =
+  "w-full mt-[10px] px-4 py-[14px] rounded-2xl border border-[color:var(--line)] bg-[rgba(255,255,255,0.07)] outline-none text-[13.5px] leading-[1.6] resize-y placeholder:text-[rgba(238,240,255,0.42)] focus:border-[rgba(169,180,255,0.55)] focus:bg-[rgba(255,255,255,0.11)] transition-colors";
+const ERROR_MSG = "mt-3 p-[10px] rounded-[10px] border border-[rgba(255,176,88,0.3)] text-[#ffd19d] text-[12px]";
+const PRIMARY_BTN =
+  "h-[42px] px-[19px] rounded-[14px] border border-[rgba(255,255,255,0.2)] bg-[linear-gradient(145deg,#fff,#dfe2ef)] text-[#141629] text-[13px] font-semibold whitespace-nowrap hover:brightness-105 disabled:opacity-45 disabled:cursor-not-allowed transition";
+const SECONDARY_BTN =
+  "h-[42px] px-[19px] rounded-[14px] border border-[color:var(--line)] bg-[rgba(255,255,255,0.07)] text-[13.5px] font-semibold hover:bg-[rgba(255,255,255,0.12)] transition-colors";
+const ACTIONS_ROW = "flex justify-end gap-[10px] mt-[22px]";
 
 // Panel is the slide-over detail panel. It handles four content types:
 //   - A document (has doc.type)
 //   - A thread (has thread.title, no type)
 //   - "ask"    — ask the team form
 //   - "upload" — add a source form
-export function Panel({ data, projects, onProjectCreated, close, session, onSession,onDocUploaded }) {
+export function Panel({ data, projects, onProjectCreated, close, session, onSession, onDocUploaded }) {
   const isDoc = Boolean(data.type);
   const isThread = Boolean(data.title) && !isDoc;
   const isModal = !isDoc && !isThread;
 
+  const layerClass = isModal
+    ? "fixed inset-0 z-50 grid place-items-center p-5 overflow-y-auto bg-[rgba(4,5,12,0.6)] backdrop-blur-[8px]"
+    : "fixed inset-0 z-50 bg-[rgba(4,5,12,0.58)] backdrop-blur-[6px]";
+
+  const panelClass = isModal
+    ? "relative overflow-y-auto w-[min(520px,100%)] max-h-[calc(100vh-40px)] p-[clamp(20px,3vw,30px)] border border-[rgba(255,255,255,0.17)] rounded-[28px] bg-[linear-gradient(160deg,rgba(255,255,255,0.14),rgba(255,255,255,0.05))] shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_34px_80px_rgba(0,0,0,0.6)] backdrop-blur-[34px] backdrop-saturate-[180%]"
+    : "absolute top-0 right-0 bottom-0 overflow-y-auto w-[min(560px,100%)] p-[clamp(18px,3vw,30px)] border-l border-[color:var(--line)] bg-[linear-gradient(180deg,rgba(22,24,44,0.92),rgba(12,13,26,0.96))] shadow-[-30px_0_80px_rgba(0,0,0,0.55)] backdrop-blur-[34px] backdrop-saturate-[180%]";
+
+  const closeButtonClass = isModal
+    ? "hidden"
+    : "float-right w-[34px] h-[34px] border border-[color:var(--line)] rounded-[11px] bg-[rgba(255,255,255,0.08)] text-lg leading-none transition-all duration-[180ms] hover:bg-[rgba(255,255,255,0.16)] hover:rotate-[4deg]";
+
   return (
-    <div className={`panel-layer${isModal ? " modal-layer" : ""}`} onClick={close}>
-      <section className={`detail-panel${isModal ? " modal-panel" : ""}`} onClick={(e) => e.stopPropagation()}>
-        <button className="close-button" onClick={close} aria-label="Close panel">×</button>
+    <div className={layerClass} onClick={close}>
+      <section className={panelClass} onClick={(e) => e.stopPropagation()}>
+        <button className={closeButtonClass} onClick={close} aria-label="Close panel">×</button>
 
         {isDoc && <DocPanel doc={data} />}
         {isThread && <ThreadPanel thread={data} />}
@@ -36,35 +65,47 @@ function DocPanel({ doc }) {
 
   return (
     <>
-      <div className="panel-meta-row">
+      <div className="flex items-center gap-[10px] min-h-[34px]">
         <Status label={doc.status} />
-        <span className="panel-kicker">{doc.type} · {doc.project}</span>
+        <span className={KICKER}>{doc.type} · {doc.project}</span>
       </div>
-      <h2>{doc.title}</h2>
-      <p>{doc.excerpt}</p>
-      <div className="panel-actions">
-        <button className="warning-action">Mark as outdated</button>
-        <button>Open source</button>
-        <button>Ask about this</button>
+      <h2 className="m-0 mt-4 text-[clamp(20px,3vw,26px)] font-bold tracking-[-0.025em] leading-[1.25] text-pretty">{doc.title}</h2>
+      <p className="m-0 mt-[10px] text-[13.5px] leading-[1.65] text-[rgba(238,240,255,0.66)] text-pretty">{doc.excerpt}</p>
+
+      <div className="flex flex-wrap gap-2 mt-[18px]">
+        <button className="h-[38px] px-[15px] rounded-xl border border-[rgba(255,176,88,0.4)] bg-[rgba(255,176,88,0.16)] text-[#ffcf94] text-[13px] font-semibold hover:brightness-110 transition">
+          Mark as outdated
+        </button>
+        <button className="h-[38px] px-[15px] rounded-xl border border-[color:var(--line)] bg-[rgba(255,255,255,0.08)] text-[13px] font-semibold hover:bg-[rgba(255,255,255,0.15)] hover:border-[rgba(255,255,255,0.28)] hover:-translate-y-px transition-all duration-[180ms]">
+          Open source
+        </button>
+        <button className="h-[38px] px-[15px] rounded-xl border border-[color:var(--line)] bg-[rgba(255,255,255,0.08)] text-[13px] font-semibold hover:bg-[rgba(255,255,255,0.15)] hover:border-[rgba(255,255,255,0.28)] hover:-translate-y-px transition-all duration-[180ms]">
+          Ask about this
+        </button>
       </div>
-      <h3>Version history</h3>
-      <div className="history">
+
+      <h3 className={SECTION_HEADING}>Version history</h3>
+      <div className="mt-3 flex flex-col gap-2">
         {versions.map((version) => (
-          <div key={`${version.version}-${version.date}`}>
-            <b>{version.version}</b>
-            <span>
+          <div
+            key={`${version.version}-${version.date}`}
+            className="flex gap-3 px-[15px] py-[13px] rounded-2xl bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.11)]"
+          >
+            <b className="shrink-0 font-normal font-['DM_Mono',monospace] text-[12.5px] text-[color:var(--violet)]">{version.version}</b>
+            <span className="flex-1 min-w-0 text-[13.5px] leading-[1.5]">
               {version.note}
-              <small>{version.author} · {version.date}</small>
+              <small className="block mt-1 font-['DM_Mono',monospace] text-[11.5px] text-[rgba(238,240,255,0.45)]">{version.author} · {version.date}</small>
             </span>
-            {version.tag && <em>{version.tag}</em>}
+            {version.tag && <em className="self-center not-italic text-[11.5px] text-[rgba(238,240,255,0.5)]">{version.tag}</em>}
           </div>
         ))}
       </div>
-      <h3>Linked threads</h3>
-      <div className="linked-items">
-        <div>
+
+      <h3 className={SECTION_HEADING}>Linked threads</h3>
+      <div className="mt-3 flex flex-col gap-2">
+        <div className="px-[15px] py-[13px] rounded-2xl bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.11)] text-[13.5px] leading-[1.5]">
           Why do payouts stall at &apos;pending_capture&apos;?
-          <small>answered · 6 replies</small>
+          <small className="block mt-1 font-['DM_Mono',monospace] text-[11.5px] text-[rgba(238,240,255,0.45)]">answered · 6 replies</small>
         </div>
       </div>
     </>
@@ -76,63 +117,73 @@ function ThreadPanel({ thread }) {
 
   return (
     <>
-      <div className="panel-meta-row">
+      <div className="flex items-center gap-[10px] min-h-[34px]">
         <Status label={thread.status} />
-        <span className="panel-kicker">Thread · {thread.project}</span>
+        <span className={KICKER}>Thread · {thread.project}</span>
       </div>
-      <h2>{thread.title}</h2>
-      <span className="mono">{thread.meta}</span>
-      <p>{thread.preview} The team is collecting the confirmed answer here so it can be found again later.</p>
-      <div className="answer">
-        <b>✓ Accepted answer</b>
-        <p>{answer}</p>
-        <small>Nadia R. · accepted by Tom B. · 12 upvotes</small>
+      <h2 className="m-0 mt-4 text-[clamp(19px,3vw,25px)] font-bold tracking-[-0.025em] leading-[1.3] text-pretty">{thread.title}</h2>
+      <span className={`block mt-2 ${KICKER}`}>{thread.meta}</span>
+      <p className="m-0 mt-[14px] text-[13.5px] leading-[1.65] text-[rgba(238,240,255,0.66)] text-pretty">
+        {thread.preview} The team is collecting the confirmed answer here so it can be found again later.
+      </p>
+
+      <div className="mt-[22px] p-[18px] rounded-[20px] bg-[linear-gradient(160deg,rgba(95,227,161,0.16),rgba(255,255,255,0.04))] border border-[rgba(95,227,161,0.32)] shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]">
+        <b className="flex items-center gap-2 text-[12px] font-semibold text-[#8ff0c0]">✓ Accepted answer</b>
+        <p className="m-0 mt-[10px] text-[14px] leading-[1.65]">{answer}</p>
+        <small className="block mt-3 font-['DM_Mono',monospace] text-[11.5px] text-[rgba(238,240,255,0.5)]">Nadia R. · accepted by Tom B. · 12 upvotes</small>
       </div>
-      <h3>Replies</h3>
-      <div className="reply">
-        <input placeholder="Write an answer..." />
-        <button>Post</button>
+
+      <h3 className={SECTION_HEADING}>Replies</h3>
+      <div className="flex gap-2 mt-[18px] items-center">
+        <input
+          placeholder="Write an answer..."
+          className="flex-1 h-[44px] px-4 rounded-2xl border border-[color:var(--line)] bg-[rgba(255,255,255,0.07)] outline-none text-[13.5px] placeholder:text-[rgba(238,240,255,0.42)] focus:border-[rgba(169,180,255,0.55)] transition-colors"
+        />
+        <button className="h-[44px] px-[18px] rounded-2xl border border-[rgba(255,255,255,0.22)] bg-[linear-gradient(160deg,rgba(255,255,255,0.9),rgba(255,255,255,0.7))] text-[#12142a] font-semibold text-[13.5px] hover:brightness-105 transition">
+          Post
+        </button>
       </div>
     </>
   );
 }
 
-function FormPanel({ type,projects, onProjectCreated, close, session, onSession,onDocUploaded }) {
+function FormPanel({ type, projects, onProjectCreated, close, session, onSession, onDocUploaded }) {
   // Ask the team panel
   if (type === "ask") {
     return (
-      <div className="form-panel">
-        <div className="form-heading">
-          <h2>Ask the team</h2>
+      <div className="pt-2">
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="m-0 text-[20px] font-bold tracking-[-0.02em]">Ask the team</h2>
           <span
-            className="upload-status"
+            className="flex-shrink-0 w-[9px] h-[9px] mt-[10px] rounded-full bg-[color:var(--green)] shadow-[0_0_10px_var(--green)]"
             aria-label="Ask service ready"
           />
         </div>
 
-        <p>
+        <p className="m-0 mt-[6px] text-[13.5px] leading-[1.55] text-[rgba(238,240,255,0.62)]">
           Once an answer is accepted, the thread becomes searchable
           alongside the docs.
         </p>
 
         <input
-          className="panel-input"
+          className={`mt-[18px] ${PANEL_INPUT}`}
           placeholder="Question - e.g. Why do payouts stall at 'pending_capture'?"
         />
 
         <textarea
+          className={TEXTAREA}
           placeholder="Add context: what you tried, error messages, which environment..."
           rows="5"
         />
 
-        <div className="upload-field-label">
+        <div className="mt-4 text-[11px] tracking-[0.12em] uppercase text-[rgba(238,240,255,0.42)]">
           Project
         </div>
 
-        <div className="project-chips">
+        <div className="mt-2 flex gap-2 flex-wrap">
           {["Platform", "Payments", "People", "Design"].map((name) => (
             <button
-              className="project-chip"
+              className="h-[32px] px-3 rounded-[11px] border border-[color:var(--line)] bg-[rgba(255,255,255,0.06)] text-[rgba(238,240,255,0.72)] text-[12.5px] hover:bg-[rgba(255,255,255,0.12)] transition-colors"
               key={name}
               type="button"
             >
@@ -141,13 +192,13 @@ function FormPanel({ type,projects, onProjectCreated, close, session, onSession,
           ))}
         </div>
 
-        <div className="form-note">
-          <span className="online" />
+        <div className="flex items-center gap-[9px] mt-[14px] text-[rgba(238,240,255,0.6)] text-xs">
+          <span className="w-2 h-2 rounded-full bg-[color:var(--green)] shadow-[0_0_8px_var(--green)]" />
           3 docs look related - they'll be suggested to responders.
         </div>
 
         <button
-          className="primary-action"
+          className={`w-full mt-4 ${PRIMARY_BTN}`}
           onClick={close}
         >
           Post to Platform
@@ -165,6 +216,7 @@ function FormPanel({ type,projects, onProjectCreated, close, session, onSession,
         close={close}
         session={session}
         onSession={onSession}
+        onDocUploaded={onDocUploaded}
       />
     );
   }
@@ -184,7 +236,8 @@ function FormPanel({ type,projects, onProjectCreated, close, session, onSession,
   // Unknown panel type
   return null;
 }
-function UploadPanel({ close, session, onSession,projects, onProjectCreated ,onDocUploaded}) {
+
+function UploadPanel({ close, session, onSession, projects, onProjectCreated, onDocUploaded }) {
   const [files, setFiles] = useState([]);
   const [link, setLink] = useState("");
   const [projectId, setProjectId] = useState("");
@@ -195,13 +248,30 @@ function UploadPanel({ close, session, onSession,projects, onProjectCreated ,onD
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [creatingProject, setCreatingProject] = useState(false);
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [allTags, setAllTags] = useState([]);
+  const [tagsLoading, setTagsLoading] = useState(true);
 
   useEffect(() => {
-  if (!projectId && projects.length > 0) {
-    setProjectId(projects[0].id);
-  }
-}, [projects, projectId]);
+    if (!projectId && projects.length > 0) {
+      setProjectId(projects[0].id);
+    }
+  }, [projects, projectId]);
 
+  // Fetch available tags
+  useEffect(() => {
+    let active = true;
+    setTagsLoading(true);
+    listTags(session, onSession)
+      .then((items) => {
+        if (active) setAllTags(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setTagsLoading(false);
+      });
+    return () => { active = false; };
+  }, [session]);
 
   const addFiles = (incoming) => {
     setError("");
@@ -216,12 +286,15 @@ function UploadPanel({ close, session, onSession,projects, onProjectCreated ,onD
     try {
       for (const file of files) {
         const uploaded = await uploadProjectDocument(
-        file,
-        { project_id: projectId },
-        session,
-        onSession
-      );
-      if (onDocUploaded) onDocUploaded(uploaded); 
+          file,
+          {
+            project_id: projectId,
+            tags: selectedTags.length > 0 ? selectedTags.join(",") : undefined,
+          },
+          session,
+          onSession
+        );
+        if (onDocUploaded) onDocUploaded(uploaded);
       }
       close();
     } catch (reason) {
@@ -262,16 +335,22 @@ function UploadPanel({ close, session, onSession,projects, onProjectCreated ,onD
   };
 
   return (
-    <div className="upload-modal">
-      <div className="upload-heading">
+    <div className="pt-2">
+      <div className="flex items-start gap-4 justify-between">
         <div>
-          <h2>Add to the hub</h2>
-          <p>Upload files and tag them to a project. Files are saved to the knowledge hub for review.</p>
+          <h2 className="m-0 text-[20px] font-bold tracking-[-0.02em]">Add to the hub</h2>
+          <p className="m-0 mt-[6px] text-[13.5px] leading-[1.55] text-[rgba(238,240,255,0.62)]">
+            Upload files and tag them to a project. Files are saved to the knowledge hub for review.
+          </p>
         </div>
       </div>
 
       <label
-        className={`upload-dropzone${dragging ? " is-dragging" : ""}`}
+        className={`flex flex-col items-center gap-[7px] min-h-[145px] mt-[18px] px-5 py-[28px] border border-dashed rounded-[20px] text-center cursor-pointer transition-all duration-[180ms] ${
+          dragging
+            ? "border-[rgba(169,180,255,0.7)] bg-[rgba(169,180,255,0.1)] -translate-y-px"
+            : "border-[rgba(255,255,255,0.26)] bg-[rgba(255,255,255,0.05)] hover:border-[rgba(169,180,255,0.7)] hover:bg-[rgba(169,180,255,0.1)] hover:-translate-y-px"
+        }`}
         onDragOver={(event) => {
           event.preventDefault();
           setDragging(true);
@@ -284,30 +363,39 @@ function UploadPanel({ close, session, onSession,projects, onProjectCreated ,onD
         }}
       >
         <input
-          className="upload-file-input"
+          className="absolute w-px h-px opacity-0 pointer-events-none"
           type="file"
           multiple
           accept=".pdf,.md,.markdown,.txt"
           onChange={(event) => addFiles(event.target.files)}
         />
-        <span className="upload-icon" aria-hidden="true">⤒</span>
-        <strong>{files.length ? `${files.length} file${files.length === 1 ? "" : "s"} selected` : "Drop PDFs, .md or README files"}</strong>
-        <span>{files.length ? files.map((file) => file.name).join(", ") : "or click to browse - up to 50 MB each"}</span>
+        <span className="text-[color:var(--violet)] text-[27px] leading-none" aria-hidden="true">⤒</span>
+        <strong className="text-[14px]">{files.length ? `${files.length} file${files.length === 1 ? "" : "s"} selected` : "Drop PDFs, .md or README files"}</strong>
+        <span className="max-w-[34ch] text-[color:var(--muted)] text-[12px] leading-[1.5]">{files.length ? files.map((file) => file.name).join(", ") : "or click to browse - up to 50 MB each"}</span>
       </label>
 
-      <input
-        id="source-link"
-        className="panel-input"
-        value={link}
-        onChange={(event) => setLink(event.target.value)}
-          placeholder="Source link (not supported for file upload yet)"
-        type="url"
+      {/* Tag Picker */}
+      <div className="mt-4 flex items-center justify-between text-[11px] tracking-[0.12em] uppercase text-[rgba(238,240,255,0.42)]">
+        <span>Tags</span>
+        <span className="normal-case tracking-normal text-[rgba(238,240,255,0.35)]">optional</span>
+      </div>
+      <TagPicker
+        allTags={allTags}
+        selectedNames={selectedTags}
+        onChange={setSelectedTags}
+        onCreateTag={async (name) => {
+          const tag = await createTag(name, session, onSession);
+          setAllTags((prev) => [...prev, tag].sort((a, b) => a.name.localeCompare(b.name)));
+          return tag;
+        }}
+        loading={tagsLoading}
       />
 
-      <div className="project-picker-heading">
+
+      <div className="flex items-center justify-between gap-3 mt-4 text-[rgba(238,240,255,0.48)] text-[11px] tracking-[0.12em] uppercase">
         <span>Project</span>
         <button
-          className="create-project-button"
+          className="h-[30px] px-[10px] rounded-[10px] border border-[rgba(169,180,255,0.28)] bg-[rgba(169,180,255,0.1)] text-[#dfe3ff] text-[11.5px] normal-case tracking-normal hover:bg-[rgba(169,180,255,0.2)] transition-colors"
           type="button"
           onClick={() => {
             setError("");
@@ -319,9 +407,9 @@ function UploadPanel({ close, session, onSession,projects, onProjectCreated ,onD
       </div>
 
       {showCreateProject && (
-        <form className="create-project-form" onSubmit={createProject}>
+        <form className="grid gap-2 mt-[10px] p-3 border border-[rgba(255,255,255,0.12)] rounded-2xl bg-[rgba(255,255,255,0.05)]" onSubmit={createProject}>
           <input
-            className="panel-input"
+            className="tag-picker-input"
             value={projectName}
             onChange={(event) => setProjectName(event.target.value)}
             placeholder="Project name"
@@ -329,22 +417,26 @@ function UploadPanel({ close, session, onSession,projects, onProjectCreated ,onD
             autoFocus
           />
           <input
-            className="panel-input"
+            className="tag-picker-input"
             value={projectDescription}
             onChange={(event) => setProjectDescription(event.target.value)}
             placeholder="Description (optional)"
             maxLength={240}
           />
-          <button className="secondary-action create-project-submit" type="submit" disabled={!projectName.trim() || creatingProject}>
+          <button className={`w-full h-9 mt-0.5 ${SECONDARY_BTN}`} type="submit" disabled={!projectName.trim() || creatingProject}>
             {creatingProject ? "Creating..." : "Create project"}
           </button>
         </form>
       )}
 
-      <div className="project-chips" role="group" aria-label="Choose a project">
+      <div className="flex flex-wrap gap-2 mt-3" role="group" aria-label="Choose a project">
         {projects.map((project) => (
           <button
-            className={`project-chip${project.id === projectId ? " active" : ""}`}
+            className={`h-[34px] px-[14px] rounded-[11px] text-[12.5px] border transition-colors ${
+              project.id === projectId
+                ? "border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.2)] text-[color:var(--ink)]"
+                : "border-[color:var(--line)] bg-[rgba(255,255,255,0.06)] text-[rgba(238,240,255,0.72)] hover:bg-[rgba(255,255,255,0.12)]"
+            }`}
             key={project.id}
             type="button"
             onClick={() => setProjectId(project.id)}
@@ -354,18 +446,18 @@ function UploadPanel({ close, session, onSession,projects, onProjectCreated ,onD
         ))}
       </div>
 
-      <div className="upload-actions">
-        <button className="secondary-action" onClick={close}>Cancel</button>
-        <button className="primary-action" onClick={submitUpload} disabled={!files.length || !projectId || uploading}>
+      <div className={ACTIONS_ROW}>
+        <button className={SECONDARY_BTN} onClick={close}>Cancel</button>
+        <button className={PRIMARY_BTN} onClick={submitUpload} disabled={!files.length || !projectId || uploading}>
           {uploading ? "Uploading..." : `Add to ${projects.find((project) => project.id === projectId)?.name || "project"}`}
         </button>
       </div>
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className={ERROR_MSG}>{error}</div>}
     </div>
   );
 }
 
-function CreateProjectPanel({ close, session, onSession ,onProjectCreated }) {
+function CreateProjectPanel({ close, session, onSession, onProjectCreated }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
@@ -384,7 +476,7 @@ function CreateProjectPanel({ close, session, onSession ,onProjectCreated }) {
     setError("");
 
     try {
-     const created = await createProjectRequest(
+      const created = await createProjectRequest(
         {
           name: projectName,
           description: description.trim(),
@@ -404,23 +496,23 @@ function CreateProjectPanel({ close, session, onSession ,onProjectCreated }) {
   };
 
   return (
-    <div className="form-panel">
-      <div className="form-heading">
-        <h2>Create project</h2>
+    <div className="pt-2">
+      <div className="flex items-start justify-between gap-4">
+        <h2 className="m-0 text-[20px] font-bold tracking-[-0.02em]">Create project</h2>
       </div>
 
-      <p>
+      <p className="m-0 mt-[6px] text-[13.5px] leading-[1.55] text-[rgba(238,240,255,0.62)]">
         Create a project to organize documents and knowledge
         in the hub.
       </p>
 
       <form onSubmit={createProject}>
-        <div className="upload-field-label">
+        <div className={FIELD_LABEL}>
           Project name
         </div>
 
         <input
-          className="panel-input"
+          className={PANEL_INPUT}
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="e.g. Payments"
@@ -428,11 +520,12 @@ function CreateProjectPanel({ close, session, onSession ,onProjectCreated }) {
           autoFocus
         />
 
-        <div className="upload-field-label">
+        <div className={FIELD_LABEL}>
           Description
         </div>
 
         <textarea
+          className={TEXTAREA}
           value={description}
           onChange={(event) =>
             setDescription(event.target.value)
@@ -443,15 +536,15 @@ function CreateProjectPanel({ close, session, onSession ,onProjectCreated }) {
         />
 
         {error && (
-          <div className="error-message">
+          <div className={ERROR_MSG}>
             {error}
           </div>
         )}
 
-        <div className="upload-actions">
+        <div className={ACTIONS_ROW}>
           <button
             type="button"
-            className="secondary-action"
+            className={SECONDARY_BTN}
             onClick={close}
           >
             Cancel
@@ -459,7 +552,7 @@ function CreateProjectPanel({ close, session, onSession ,onProjectCreated }) {
 
           <button
             type="submit"
-            className="primary-action"
+            className="primary-action tag-manager-create-btn"
             disabled={!name.trim() || creating}
           >
             {creating ? "Creating..." : "Create project"}

@@ -15,6 +15,7 @@ import { Panel }         from "./components/Panel";
 import { Toast }         from "./components/Toast";
 import { MyDocsView }    from "./components/MyDocsView";
 import { ReviewView }    from "./components/MyDocsReview";
+import { TagManagerModal } from "./components/TagManagerModal";
 
 import { listProjects }  from "./api/projects";
 import { useDocumentSearch } from "./hooks/useDocumentSearch";
@@ -31,6 +32,7 @@ function App() {
   const [sidebar,         setSidebar]        = useState(false);
   const [panel,           setPanel]          = useState(null);
   const [toast,           setToast]          = useState("");
+  const [showTagManager,  setShowTagManager] = useState(false);
 
   // My Docs — only fetches when "mydocs" view is active
   const {
@@ -101,18 +103,19 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell relative min-h-screen overflow-hidden bg-[#070812] text-[#eef0ff]">
       <Topbar
         user={user}
         query={query}
         onQuery={handleQuery}
         onUpload={() => setPanel("upload")}
         onCreateProject={() => setPanel("createProject")}
+        onManageTags={() => setShowTagManager(true)}
         onSignOut={signOut}
         onMenuToggle={() => setSidebar((s) => !s)}
       />
 
-      <div className="workspace">
+      <div className="relative z-[1] flex gap-[clamp(12px,2vw,22px)] max-w-[1560px] mx-auto px-[clamp(14px,2.4vw,28px)] py-[22px] max-[850px]:pt-[14px]">
         <Sidebar
           open={sidebar}
           view={view}
@@ -125,7 +128,7 @@ function App() {
           onProject={handleProject}
         />
 
-        <main className="main-content">
+        <main className="flex-1 min-w-0 flex flex-col gap-4">
           {view === "search" && (
             <SearchView
               query={query}
@@ -187,7 +190,17 @@ function App() {
 
       <Toast message={toast} onClose={() => setToast("")} />
 
-      <div className="user-status">Signed in as {user.email}</div>
+      {showTagManager && (
+        <TagManagerModal
+          session={session}
+          onSession={saveSession}
+          onClose={() => setShowTagManager(false)}
+        />
+      )}
+
+      <div className="fixed right-3.5 bottom-3 z-[3] text-[10px] tracking-wide text-[rgba(238,240,255,0.32)] [font-family:'DM_Mono',monospace] max-[520px]:hidden">
+        Signed in as {user.email}
+      </div>
     </div>
   );
 }

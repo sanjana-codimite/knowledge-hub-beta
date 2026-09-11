@@ -76,7 +76,7 @@ export function Sidebar({
       <div className="side-label">Projects</div>
 
       {loadingProjects ? (
-        <p style={{ padding: "8px 16px", color: "#64748b", fontSize: "0.82rem" }}>
+        <p className="px-4 py-2 text-[0.82rem] text-[rgba(238,240,255,0.5)]">
           Loading projects...
         </p>
       ) : (

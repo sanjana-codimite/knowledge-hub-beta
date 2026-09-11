@@ -31,52 +31,80 @@ export function DocumentCard({ doc, onClick, session, onSession }) {
 
   return (
     <>
-      <div className="document-card" onClick={(event) => {
-            event.stopPropagation();
-            handlePreview();
-          }} role="button" tabIndex={0}>
+      {/* document-card kept in CSS — glassmorphism + hover transform, shared with .thread-card/.source-card */}
+      <div
+        className="document-card"
+        onClick={(event) => { event.stopPropagation(); handlePreview(); }}
+        role="button"
+        tabIndex={0}
+      >
+        {/* doc-icon kept in CSS — glass bg + border, shared with .source-icon */}
         <span className="doc-icon">{doc.icon || getDocumentIcon(doc.mime_type)}</span>
-      <span className="doc-body">
-        <span className="doc-title">
-          <b>{title}</b>
-          <Status label={status} />
+
+        <span className="flex flex-1 min-w-0 flex-col gap-[5px]">
+          <span className="flex items-center gap-[9px] flex-wrap">
+            <b>{title}</b>
+            <Status label={status} />
+          </span>
+          {/* doc-excerpt kept in CSS — -webkit-line-clamp */}
+          <span className="doc-excerpt">{excerpt}</span>
+          {doc.tags && doc.tags.length > 0 && (
+            <span className="flex flex-wrap gap-[5px] mt-0.5">
+              {doc.tags.map((tag) => (
+                // doc-tag-chip kept in CSS — complex rgba + hover
+                <span key={tag.id} className="doc-tag-chip">#{tag.name}</span>
+              ))}
+            </span>
+          )}
+          {/* doc-meta kept in CSS — DM Mono font */}
+          <span className="doc-meta">
+            {type} · {project} · {meta}
+          </span>
         </span>
-        <span className="doc-excerpt">{excerpt}</span>
-        <span className="doc-meta">
-          {type} · {project} · {meta}
-        </span>
-      </span>
-      {/* View / Preview */}
+
+        {/* secondary-action kept in CSS — glass button style, shared across the app */}
         <button
           className="secondary-action"
-          onClick={(event) => {
-            event.stopPropagation();
-            handlePreview();
-          }}
+          onClick={(event) => { event.stopPropagation(); handlePreview(); }}
         >
           View
         </button>
       </div>
 
-      {previewError && <div className="my-docs-empty">{previewError}</div>}
+      {previewError && (
+        <div className="py-12 px-6 text-center text-[rgba(238,240,255,0.5)]">{previewError}</div>
+      )}
 
       {previewURL && (
-        <div className="preview-overlay" onClick={() => setPreviewURL(null)}>
-          <div className="preview-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="preview-header">
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9000] flex items-center justify-center"
+          onClick={() => setPreviewURL(null)}
+        >
+          <div
+            className="bg-gradient-to-b from-[rgba(22,24,44,0.94)] to-[rgba(12,13,26,0.97)] backdrop-blur-2xl backdrop-saturate-150 border border-white/[0.14] shadow-[0_30px_80px_rgba(0,0,0,0.55)] rounded-2xl w-[80vw] h-[85vh] flex flex-col overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.12] text-[0.9rem] text-[#eef0ff]">
               <span>{title}</span>
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div className="flex gap-2">
                 <a className="secondary-action" href={previewURL} download={title}>
                   Download
                 </a>
-                <button className="toast-close" onClick={() => setPreviewURL(null)}>
+                <button
+                  className="bg-transparent border-0 text-[rgba(238,240,255,0.45)] text-[1.1rem] cursor-pointer leading-none p-0 flex-shrink-0 transition-colors hover:text-[#a9b4ff]"
+                  onClick={() => setPreviewURL(null)}
+                >
                   ×
                 </button>
               </div>
             </div>
 
             {doc.mime_type === "application/pdf" ? (
-              <iframe src={previewURL} title={title} className="preview-frame" />
+              <iframe
+                src={previewURL}
+                title={title}
+                className="flex-1 w-full border-0 bg-white"
+              />
             ) : (
               <MarkdownPreview url={previewURL} />
             )}
@@ -97,19 +125,17 @@ function MarkdownPreview({ url }) {
         if (!response.ok) throw new Error("Failed to load file");
         return response.text();
       })
-      .then((content) => {
-        if (active) setText(content);
-      })
-      .catch(() => {
-        if (active) setText("Could not load file.");
-      });
+      .then((content) => { if (active) setText(content); })
+      .catch(() => { if (active) setText("Could not load file."); });
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [url]);
 
-  return <pre className="md-preview">{text}</pre>;
+  return (
+    <pre className="flex-1 p-6 overflow-auto text-[0.9rem] text-[rgba(238,240,255,0.65)] whitespace-pre-wrap break-words [font-family:'DM_Mono',monospace]">
+      {text}
+    </pre>
+  );
 }
 
 function getDocumentType(mimeType) {

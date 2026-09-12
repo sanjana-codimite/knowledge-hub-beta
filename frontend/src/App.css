@@ -113,9 +113,14 @@ textarea:focus-visible {
   background: #1c2a1c;
   color: #6fcf6f;
   border: 1px solid #3a5a3a;
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-size: 0.82rem;
+  border-radius: 12px;
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -126,9 +131,14 @@ textarea:focus-visible {
   background: #2a1c1c;
   color: #ef4444;
   border: 1px solid #5a3a3a;
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-size: 0.82rem;
+  border-radius: 12px;
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -190,6 +200,7 @@ textarea:focus-visible {
 }
 .sidebar {
   flex: 0 0 262px;
+  width: 262px;
   position: sticky;
   top: 88px;
   align-self: flex-start;
@@ -203,6 +214,10 @@ textarea:focus-visible {
   );
   backdrop-filter: blur(26px);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar.collapsed {
+  display: none !important;
 }
 .nav-button,
 .project-link {
@@ -496,6 +511,13 @@ textarea:focus-visible {
   font-size: 13.5px;
   line-height: 1.55;
 }
+.login-google-btn {
+  background: #ffffff !important;
+  color: #111426 !important;
+}
+.login-google-btn span {
+  color: #111426 !important;
+}
 .error-message {
   margin-top: 12px;
   padding: 10px;
@@ -584,14 +606,25 @@ textarea:focus-visible {
   padding-top: 8px;
 }
 .secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: auto;
-  height: 42px;
-  padding: 0 19px;
-  border-radius: 14px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 12px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.07);
-  font-size: 13.5px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #eef0ff;
+  font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.secondary-action:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 /* Toast notification — Google notification card style */
@@ -773,10 +806,14 @@ textarea:focus-visible {
     top: 132px;
     left: 12px;
     right: 12px;
+    width: auto !important;
     z-index: 30;
   }
   .sidebar.open {
-    display: block;
+    display: block !important;
+  }
+  .sidebar.collapsed {
+    display: none !important;
   }
   .login-layout {
     flex-direction: column;
@@ -804,4 +841,22 @@ textarea:focus-visible {
     width: 38px;
     height: 38px;
   }
+}
+
+.overflow-y-auto {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(169, 180, 255, 0.25) transparent;
+}
+.overflow-y-auto::-webkit-scrollbar {
+  width: 5px;
+}
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(169, 180, 255, 0.25);
+  border-radius: 999px;
+}
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(169, 180, 255, 0.45);
 }

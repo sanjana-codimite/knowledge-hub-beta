@@ -163,6 +163,23 @@ func (s *Service) CountPublishedByProject(ctx context.Context) (map[string]int, 
     return s.repo.CountPublishedByProject(ctx)
 }
 
+type UserDocCounts struct {
+	MyDocs    int `json:"my_docs"`
+	MyReviews int `json:"my_reviews"`
+}
+
+func (s *Service) GetUserDocCounts(ctx context.Context, userID string) (*UserDocCounts, error) {
+	myDocs, err := s.repo.CountMyDocs(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	myReviews, err := s.repo.CountMyReviews(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return &UserDocCounts{MyDocs: myDocs, MyReviews: myReviews}, nil
+}
+
 // ListMine returns documents uploaded by the given user (dashboard view).
 func (s *Service) ListMine(ctx context.Context, userID string) ([]types.Document, error) {
 	docs, err := s.repo.ListByUploader(ctx, userID)

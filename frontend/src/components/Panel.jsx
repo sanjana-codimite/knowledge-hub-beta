@@ -4,6 +4,7 @@ import { uploadProjectDocument } from "../api/documents";
 import { createProject as createProjectRequest, listProjects } from "../api/projects";
 import { listTags, createTag } from "../api/tags";
 import { TagPicker } from "./TagPicker";
+import { useToast } from "./Toast";
 
 // --- shared style tokens (kept as constants so every panel stays consistent) ---
 const KICKER = "font-['DM_Mono',monospace] text-[11.5px] text-[rgba(238,240,255,0.5)]";
@@ -233,6 +234,7 @@ function FormPanel({ type, projects, onProjectCreated, close, session, onSession
 }
 
 function UploadPanel({ close, session, onSession, projects, onProjectCreated, onDocUploaded }) {
+  const { showToast } = useToast();
   const [files, setFiles] = useState([]);
   const [link, setLink] = useState("");
   const [projectId, setProjectId] = useState("");
@@ -291,6 +293,11 @@ function UploadPanel({ close, session, onSession, projects, onProjectCreated, on
         );
         if (onDocUploaded) onDocUploaded(uploaded);
       }
+      if (files.length === 1) {
+        showToast(`"${files[0].name}" uploaded successfully`);
+      } else {
+        showToast(`${files.length} documents uploaded successfully`);
+      }
       close();
     } catch (reason) {
       setError(reason.message || "Upload failed. Please try again.");
@@ -318,6 +325,7 @@ function UploadPanel({ close, session, onSession, projects, onProjectCreated, on
 
       if (!created?.id) throw new Error("Project was created without an id.");
       onProjectCreated(created);
+      showToast(`Project "${created.name}" created successfully`);
       setProjectId(created.id);
       setProjectName("");
       setProjectDescription("");
@@ -424,18 +432,21 @@ function UploadPanel({ close, session, onSession, projects, onProjectCreated, on
         </form>
       )}
 
-      <div className="flex flex-wrap gap-2 mt-3" role="group" aria-label="Choose a project">
+      <div className="flex flex-wrap gap-1.5 mt-2.5 max-h-[140px] overflow-y-auto pr-1" role="group" aria-label="Choose a project">
         {projects.map((project) => (
           <button
-            className={`h-[34px] px-[14px] rounded-[11px] text-[12.5px] border transition-colors ${
+            className={`inline-flex items-center gap-1.5 h-[28px] px-2.5 rounded-[9px] text-[12px] font-medium border cursor-pointer transition-all ${
               project.id === projectId
-                ? "border-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.2)] text-[color:var(--ink)]"
-                : "border-[color:var(--line)] bg-[rgba(255,255,255,0.06)] text-[rgba(238,240,255,0.72)] hover:bg-[rgba(255,255,255,0.12)]"
+                ? "border-[rgba(169,180,255,0.45)] bg-[rgba(169,180,255,0.18)] text-[#a9b4ff]"
+                : "border-[rgba(169,180,255,0.18)] bg-[rgba(255,255,255,0.05)] text-[rgba(238,240,255,0.68)] hover:bg-[rgba(169,180,255,0.12)] hover:border-[rgba(169,180,255,0.32)] hover:text-[#eef0ff]"
             }`}
             key={project.id}
             type="button"
             onClick={() => setProjectId(project.id)}
           >
+            <span className="text-[10px] opacity-70">
+              {project.id === projectId ? "✓" : "📁"}
+            </span>
             {project.name}
           </button>
         ))}
@@ -443,8 +454,16 @@ function UploadPanel({ close, session, onSession, projects, onProjectCreated, on
 
       <div className={ACTIONS_ROW}>
         <button className={SECONDARY_BTN} onClick={close}>Cancel</button>
-        <button className={PRIMARY_BTN} onClick={submitUpload} disabled={!files.length || !projectId || uploading}>
-          {uploading ? "Uploading..." : `Add to ${projects.find((project) => project.id === projectId)?.name || "project"}`}
+        <button
+          className="h-[42px] px-5 rounded-[14px] font-semibold text-[13.5px] border border-transparent bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] text-white shadow-[0_4px_16px_rgba(99,102,241,0.35)] hover:brightness-110 disabled:opacity-40 disabled:bg-[rgba(255,255,255,0.06)] disabled:border-[rgba(255,255,255,0.1)] disabled:text-[rgba(238,240,255,0.4)] disabled:shadow-none disabled:cursor-not-allowed transition-all"
+          onClick={submitUpload}
+          disabled={!files.length || !projectId || uploading}
+        >
+          {uploading
+            ? "Uploading..."
+            : files.length > 1
+            ? `Upload ${files.length} documents`
+            : "Upload to Hub"}
         </button>
       </div>
       {error && <div className={ERROR_MSG}>{error}</div>}
@@ -453,6 +472,7 @@ function UploadPanel({ close, session, onSession, projects, onProjectCreated, on
 }
 
 function CreateProjectPanel({ close, session, onSession, onProjectCreated }) {
+  const { showToast } = useToast();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
@@ -480,6 +500,7 @@ function CreateProjectPanel({ close, session, onSession, onProjectCreated }) {
         onSession
       );
       onProjectCreated(created);
+      showToast(`Project "${created.name}" created successfully`);
       close();
     } catch (reason) {
       setError(

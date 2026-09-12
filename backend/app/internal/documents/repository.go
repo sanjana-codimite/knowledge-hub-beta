@@ -28,6 +28,8 @@ type Repository interface {
 	SearchByVector(ctx context.Context, vector []float32, limit int) ([]types.Document, error)
 	RemoveReviewer(ctx context.Context, docID string) error
 	CountPublishedByProject(ctx context.Context) (map[string]int, error)
+	CountMyDocs(ctx context.Context, userID string) (int, error)
+	CountMyReviews(ctx context.Context, userID string) (int, error)
 	// Tag operations
 	CreateTag(ctx context.Context, name string) (*types.Tag, error)
 	ListTags(ctx context.Context) ([]types.Tag, error)
@@ -401,8 +403,8 @@ func (r *postgresRepository) ListUsers(ctx context.Context, currentUserID string
 
 func (r *postgresRepository) CountPublishedByProject(ctx context.Context) (map[string]int, error) {
     const q = `
-        SELECT project_id::text, COUNT(*) 
-        FROM documents 
+        SELECT project_id::text, COUNT(*)
+        FROM documents
         WHERE status = 'published'
         GROUP BY project_id
     `
@@ -422,4 +424,22 @@ func (r *postgresRepository) CountPublishedByProject(ctx context.Context) (map[s
         counts[projectID] = count
     }
     return counts, rows.Err()
+}
+
+func (r *postgresRepository) CountMyDocs(ctx context.Context, userID string) (int, error) {
+    var count int
+    err := r.db.QueryRow(ctx,
+        `SELECT COUNT(*) FROM documents WHERE uploaded_by = $1`,
+        userID,
+    ).Scan(&count)
+    return count, err
+}
+
+func (r *postgresRepository) CountMyReviews(ctx context.Context, userID string) (int, error) {
+    var count int
+    err := r.db.QueryRow(ctx,
+        `SELECT COUNT(*) FROM documents WHERE reviewer_id = $1 AND status = 'in_review'`,
+        userID,
+    ).Scan(&count)
+    return count, err
 }

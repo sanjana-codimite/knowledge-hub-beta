@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { listTags, createTag } from "../api/tags";
-
+import { useToast } from "./Toast";
 
 export function TagManagerModal({ session, onSession, onClose }) {
+  const { showToast } = useToast();
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newTagName, setNewTagName] = useState("");
@@ -45,6 +46,7 @@ export function TagManagerModal({ session, onSession, onClose }) {
           (a, b) => new Date(b.created_at) - new Date(a.created_at)
         )
       );
+      showToast(`Tag "#${trimmed}" created successfully`);
       setNewTagName("");
     } catch (err) {
       setError(err.message || "Could not create tag");

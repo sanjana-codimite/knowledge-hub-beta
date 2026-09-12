@@ -60,4 +60,3 @@ ON document_embeddings
 USING ivfflat (embedding_vector vector_cosine_ops)
 WITH (lists = 10);
 
-

@@ -1,6 +1,6 @@
 // useDocumentSearch.js
 import { useEffect, useState } from "react";
-import { listPublishedDocuments, searchDocuments,getDocumentCounts  } from "../api/documents";
+import { listPublishedDocuments, searchDocuments, getDocumentCounts, getMyDocCounts } from "../api/documents";
 
 const SEARCH_DEBOUNCE_MS = 350;
 
@@ -54,7 +54,7 @@ export function useDocumentSearch(session, onSession, query, projectID, enabled)
 }
 
 export function useDocumentCounts(session, saveSession) {
-  const [counts, setCounts] = useState({});  // { "project-uuid": 3 }
+  const [counts, setCounts] = useState({});
   const [total, setTotal]   = useState(0);
 
   useEffect(() => {
@@ -62,11 +62,27 @@ export function useDocumentCounts(session, saveSession) {
     getDocumentCounts(session, saveSession)
       .then((data) => {
         setCounts(data || {});
-        // Total = sum of all project counts
         setTotal(Object.values(data || {}).reduce((a, b) => a + b, 0));
       })
       .catch(console.error);
   }, [session]);
 
   return { counts, total };
+}
+
+export function useMyDocCounts(session, saveSession) {
+  const [myDocsCount,    setMyDocsCount]    = useState(0);
+  const [myReviewsCount, setMyReviewsCount] = useState(0);
+
+  useEffect(() => {
+    if (!session) return;
+    getMyDocCounts(session, saveSession)
+      .then((data) => {
+        setMyDocsCount(data?.my_docs ?? 0);
+        setMyReviewsCount(data?.my_reviews ?? 0);
+      })
+      .catch(console.error);
+  }, [session]);
+
+  return { myDocsCount, myReviewsCount };
 }

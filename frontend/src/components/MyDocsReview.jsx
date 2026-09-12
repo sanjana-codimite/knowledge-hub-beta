@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { approveDocument, rejectDocument, getDocumentFileURL } from "../api/documents";
 import { Status } from "./Status";
+import { DocTypeFilter, filterDocsByType, getDocCategory } from "./DocTypeFilter";
 
-export function ReviewView({ reviewDocs, loading, error, session, onSession, onDocActioned }) {
+export function ReviewView({ reviewDocs = [], loading, error, session, onSession, onDocActioned }) {
+  const [typeFilter, setTypeFilter] = useState("all");
   const [processing, setProcessing] = useState(null);
   const [actionError, setActionError] = useState("");
   const [previewURL, setPreviewURL]   = useState(null);
@@ -10,6 +12,21 @@ export function ReviewView({ reviewDocs, loading, error, session, onSession, onD
   const [previewMime, setPreviewMime] = useState("");
   const [rejectNote, setRejectNote]   = useState("");
   const [rejectingDoc, setRejectingDoc] = useState(null);
+
+  const safeDocs = Array.isArray(reviewDocs) ? reviewDocs : [];
+
+  const typeCounts = useMemo(() => {
+    return {
+      all: safeDocs.length,
+      pdf: safeDocs.filter((d) => getDocCategory(d) === "pdf").length,
+      readme: safeDocs.filter((d) => getDocCategory(d) === "readme").length,
+      txt: safeDocs.filter((d) => getDocCategory(d) === "txt").length,
+    };
+  }, [safeDocs]);
+
+  const filteredDocs = useMemo(() => {
+    return filterDocsByType(safeDocs, typeFilter);
+  }, [safeDocs, typeFilter]);
 
   const handlePreview = async (doc) => {
     try {
@@ -60,20 +77,26 @@ export function ReviewView({ reviewDocs, loading, error, session, onSession, onD
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="m-0 text-[22px] font-bold tracking-[-0.02em] text-[#eef0ff]">Review Queue</h2>
           <p className="mt-1.5 text-sm text-[rgba(238,240,255,0.6)]">
             Documents assigned to you. Review and approve or reject each one.
           </p>
         </div>
+
+        <DocTypeFilter
+          selectedFilter={typeFilter}
+          onFilterChange={setTypeFilter}
+          counts={typeCounts}
+        />
       </div>
 
       {/* error-message kept in CSS — matches the app's amber warning treatment */}
-      {actionError && <div className="error-message">{actionError}</div>}
+      {actionError && <div className="error-message mt-3">{actionError}</div>}
 
-      <div className="flex flex-col gap-3 mt-4">
-        {reviewDocs.map((doc) => (
+      <div className="flex flex-col gap-3 mt-4 max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
+        {filteredDocs.map((doc) => (
           // row styled to match the app's glass-card system (same gradient/blur/shadow as .document-card)
           <div
             key={doc.id}
@@ -84,15 +107,17 @@ export function ReviewView({ reviewDocs, loading, error, session, onSession, onD
                 {doc.mime_type === "application/pdf" ? "▤" : "›_"}
               </span>
               <div className="flex flex-col gap-0.5 min-w-0">
-                <b className="text-[0.9rem] text-[#eef0ff] truncate">{doc.title || doc.filename}</b>
+                <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+                  <b className="text-[0.9rem] text-[#eef0ff] truncate">{doc.title || doc.filename}</b>
+                  <Status label={doc.status} />
+                </div>
                 <small className="text-xs text-[rgba(238,240,255,0.5)] truncate">
                   {doc.filename} · uploaded by {doc.uploaded_by}
                 </small>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Status label={doc.status} />
+            <div className="flex items-center gap-2.5 flex-shrink-0">
               <button className="secondary-action" onClick={() => handlePreview(doc)}>View</button>
               {/* approve-btn / reject-btn kept in CSS — semantic dark colors */}
               <button
@@ -112,6 +137,11 @@ export function ReviewView({ reviewDocs, loading, error, session, onSession, onD
             </div>
           </div>
         ))}
+        {!filteredDocs.length && (
+          <div className="py-12 px-6 text-center text-[rgba(238,240,255,0.5)]">
+            No matching documents found for this file type.
+          </div>
+        )}
       </div>
 
       {/* Reject confirmation dialog — themed to match the app's glass-panel system */}

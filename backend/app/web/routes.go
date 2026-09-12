@@ -53,6 +53,14 @@ mux.HandleFunc("/web/documents/counts", a.authMW.RequireAuth(func(w http.Respons
     }
     http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }))
+
+	mux.HandleFunc("/web/documents/my-counts", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			a.docHandler.MyDocCounts(w, r)
+			return
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}))
 	mux.HandleFunc("/web/documents", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			a.docHandler.ListAll(w, r)

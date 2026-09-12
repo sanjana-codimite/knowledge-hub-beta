@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Status } from "./Status";
 import { getDocumentFileURL } from "../api/documents";
 import { ReviewerPicker } from "./ReviewerPicker";
+import { DocTypeFilter, filterDocsByType, getDocCategory } from "./DocTypeFilter";
 
 export function MyDocsView({
   myDocs,
@@ -12,13 +13,28 @@ export function MyDocsView({
   users,
 }) {
   const [docs, setDocs] = useState([]);
+  const [typeFilter, setTypeFilter] = useState("all");
   const [previewURL, setPreviewURL] = useState(null);
   const [previewMime, setPreviewMime] = useState("");
   const [previewName, setPreviewName] = useState("");
 
   useEffect(() => {
-    setDocs(myDocs);
+    setDocs(myDocs || []);
   }, [myDocs]);
+
+  const typeCounts = useMemo(() => {
+    const list = docs || [];
+    return {
+      all: list.length,
+      pdf: list.filter((d) => getDocCategory(d) === "pdf").length,
+      readme: list.filter((d) => getDocCategory(d) === "readme").length,
+      txt: list.filter((d) => getDocCategory(d) === "txt").length,
+    };
+  }, [docs]);
+
+  const filteredDocs = useMemo(() => {
+    return filterDocsByType(docs || [], typeFilter);
+  }, [docs, typeFilter]);
 
   const handlePreview = async (doc) => {
     try {
@@ -58,7 +74,7 @@ export function MyDocsView({
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="m-0 text-[22px] font-bold tracking-[-0.02em] text-[#eef0ff]">
             My Documents
@@ -68,26 +84,32 @@ export function MyDocsView({
             process.
           </p>
         </div>
+
+        <DocTypeFilter
+          selectedFilter={typeFilter}
+          onFilterChange={setTypeFilter}
+          counts={typeCounts}
+        />
       </div>
 
-      <div className="flex flex-col gap-3 mt-4">
-        {docs.map((doc) => (
-          // row styled to match the app's glass-card system (same gradient/blur/shadow as .document-card)
+      <div className="flex flex-col gap-3 mt-4 max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
+        {filteredDocs.map((doc) => (
           <div
             key={doc.id}
             className="flex items-center justify-between gap-4 px-4 py-3.5 rounded-[20px] border border-white/[0.13] bg-gradient-to-br from-white/[0.12] to-white/[0.045] backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_16px_40px_rgba(0,0,0,0.26)]"
           >
-            {/* Doc info */}
             <div className="flex items-center gap-3 min-w-0">
-              {/* doc-icon kept in CSS — glass bg */}
               <span className="doc-icon">
                 {doc.mime_type === "application/pdf" ? "▤" : "›_"}
               </span>
 
               <div className="flex flex-col gap-0.5 min-w-0">
-                <b className="text-[0.9rem] text-[#eef0ff] truncate">
-                  {doc.title || doc.filename}
-                </b>
+                <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+                  <b className="text-[0.9rem] text-[#eef0ff] truncate">
+                    {doc.title || doc.filename}
+                  </b>
+                  <Status label={doc.status} />
+                </div>
                 <small className="text-xs text-[rgba(238,240,255,0.5)] truncate">
                   {doc.filename} · {doc.mime_type}
                 </small>
@@ -103,9 +125,7 @@ export function MyDocsView({
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Status label={doc.status} />
+            <div className="flex items-center gap-2.5 flex-shrink-0">
               <button
                 className="secondary-action"
                 onClick={() => handlePreview(doc)}
@@ -126,6 +146,11 @@ export function MyDocsView({
             </div>
           </div>
         ))}
+        {!filteredDocs.length && (
+          <div className="py-12 px-6 text-center text-[rgba(238,240,255,0.5)]">
+            No matching documents found for this file type.
+          </div>
+        )}
       </div>
 
       {/* File preview modal — matches the app's slide-panel glass style */}

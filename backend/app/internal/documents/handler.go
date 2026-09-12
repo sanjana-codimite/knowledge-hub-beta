@@ -103,6 +103,20 @@ func (h *Handler) Counts(w http.ResponseWriter, r *http.Request) {
     writeJSON(w, http.StatusOK, counts)
 }
 
+func (h *Handler) MyDocCounts(w http.ResponseWriter, r *http.Request) {
+	ac, ok := types.GetAuthContext(r.Context())
+	if !ok {
+		writeJSONError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	result, err := h.svc.GetUserDocCounts(r.Context(), ac.UserID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "could not get counts")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
 
 func (h *Handler) ListPublished(w http.ResponseWriter, r *http.Request) {
     projectID := r.URL.Query().Get("project_id")

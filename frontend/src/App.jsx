@@ -12,15 +12,16 @@ import { SearchView }    from "./components/SearchView";
 import { ThreadsView }   from "./components/ThreadsView";
 import { SourcesView }   from "./components/SourcesView";
 import { Panel }         from "./components/Panel";
-import { Toast }         from "./components/Toast";
+import { useToast }      from "./components/Toast";
 import { MyDocsView }    from "./components/MyDocsView";
 import { ReviewView }    from "./components/MyDocsReview";
 import { TagManagerModal } from "./components/TagManagerModal";
 
 import { listProjects }  from "./api/projects";
-import { useDocumentSearch ,useDocumentCounts  } from "./hooks/useDocumentSearch";
+import { useDocumentSearch, useDocumentCounts, useMyDocCounts } from "./hooks/useDocumentSearch";
 
 function App() {
+  const { showToast } = useToast();
   const { user, session, saveSession, busy, error, signIn, signOut } = useAuth();
   const { users } = useUsers(session, saveSession);
 
@@ -29,11 +30,16 @@ function App() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [projects,        setProjects]       = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
-  const [sidebar,         setSidebar]        = useState(false);
+  const [sidebar,         setSidebar]        = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth > 850;
+    }
+    return true;
+  });
   const [panel,           setPanel]          = useState(null);
-  const [toast,           setToast]          = useState("");
   const [showTagManager,  setShowTagManager] = useState(false);
   const { counts, total } = useDocumentCounts(session, saveSession);
+  const { myDocsCount, myReviewsCount } = useMyDocCounts(session, saveSession);
   // My Docs — only fetches when "mydocs" view is active
   const {
     myDocs,
@@ -81,22 +87,24 @@ function App() {
   const handleProject = (projectItem) => {
     setSelectedProject(projectItem);
     setView("search");
-    setSidebar(false);
+    if (typeof window !== "undefined" && window.innerWidth <= 850) {
+      setSidebar(false);
+    }
   }; 
 
   const handleProjectCreated = (createdProject) => {
     setProjects((current) => [...current, createdProject]);
-    setToast(`Project "${createdProject.name}" created`);
   };
 
   const handleDocUploaded = (doc) => {
     addDoc(doc);
-    setToast(`"${doc.title || doc.filename}" uploaded successfully`);
   };
 
   const handleView = (v) => {
     setView(v);
-    setSidebar(false);
+    if (typeof window !== "undefined" && window.innerWidth <= 850) {
+      setSidebar(false);
+    }
   };
 
   if (!session || !user) {
@@ -120,6 +128,8 @@ function App() {
         <Sidebar
           counts={counts}
           totalCount={total}
+          myDocsCount={myDocsCount}
+          myReviewsCount={myReviewsCount}
           open={sidebar}
           view={view}
           selectedProject={selectedProject}
@@ -192,8 +202,6 @@ function App() {
         />
       )}
 
-      <Toast message={toast} onClose={() => setToast("")} />
-
       {showTagManager && (
         <TagManagerModal
           session={session}
@@ -202,9 +210,7 @@ function App() {
         />
       )}
 
-      <div className="fixed right-3.5 bottom-3 z-[3] text-[10px] tracking-wide text-[rgba(238,240,255,0.32)] [font-family:'DM_Mono',monospace] max-[520px]:hidden">
-        Signed in as {user.email}
-      </div>
+     
     </div>
   );
 }

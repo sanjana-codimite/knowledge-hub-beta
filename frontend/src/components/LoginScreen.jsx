@@ -52,12 +52,15 @@ export function LoginScreen({ onSignIn, busy, error }) {
           </p>
 
           <button
-            className="flex items-center justify-center gap-[11px] w-full h-[52px] mt-6 rounded-2xl bg-gradient-to-br from-white to-[#dfe2ef] text-[#141629] text-sm font-semibold transition-[filter] hover:enabled:brightness-[1.06] disabled:cursor-wait disabled:opacity-70"
+            className="login-google-btn flex items-center justify-center gap-[11px] w-full h-[52px] mt-6 rounded-2xl bg-white text-[#111426] text-sm font-semibold transition-all shadow-[0_4px_16px_rgba(0,0,0,0.18)] hover:enabled:brightness-[1.03] disabled:cursor-wait disabled:opacity-70 cursor-pointer"
+            style={{ color: "#111426", backgroundColor: "#ffffff" }}
             onClick={onSignIn}
             disabled={busy}
           >
             <FcGoogle className="w-[23px] h-[23px] flex-shrink-0" aria-hidden="true" />
-            {busy ? "Waiting for Google..." : "Continue with Google"}
+            <span style={{ color: "#111426", fontWeight: 600 }}>
+              {busy ? "Waiting for Google..." : "Continue with Google"}
+            </span>
           </button>
 
           {error && (

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useToast } from "./Toast";
 
 export function TagPicker({
   allTags = [],
@@ -7,6 +8,7 @@ export function TagPicker({
   onCreateTag,
   loading = false,
 }) {
+  const { showToast } = useToast();
   const [newTagName, setNewTagName] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -38,6 +40,7 @@ export function TagPicker({
       if (!selectedNames.includes(trimmed)) {
         onChange([...selectedNames, trimmed]);
       }
+      showToast(`Tag "#${trimmed}" created successfully`);
       setNewTagName("");
     } catch (err) {
       setError(err.message || "Could not create tag");
@@ -85,7 +88,7 @@ export function TagPicker({
           </div>
 
           {allTags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2">
+            <div className="flex flex-wrap gap-1.5 mb-2 max-h-[140px] overflow-y-auto pr-1">
               {allTags.map((tag) => (
                 <button
                   key={tag.id}

@@ -47,6 +47,10 @@ export function getDocumentCounts(session, onSession) {
   return request("/web/documents/counts", {}, session, onSession);
 }
 
+export function getMyDocCounts(session, onSession) {
+  return request("/web/documents/my-counts", {}, session, onSession);
+}
+
 // Get all documents for the search/browse view
 export function listPublishedDocuments(projectID, session, onSession) {
   const params = new URLSearchParams();

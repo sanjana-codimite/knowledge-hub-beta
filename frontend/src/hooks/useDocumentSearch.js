@@ -1,5 +1,5 @@
 // useDocumentSearch.js
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { listPublishedDocuments, searchDocuments, getDocumentCounts, getMyDocCounts } from "../api/documents";
 
 const SEARCH_DEBOUNCE_MS = 350;
@@ -74,7 +74,7 @@ export function useMyDocCounts(session, saveSession) {
   const [myDocsCount,    setMyDocsCount]    = useState(0);
   const [myReviewsCount, setMyReviewsCount] = useState(0);
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     if (!session) return;
     getMyDocCounts(session, saveSession)
       .then((data) => {
@@ -82,7 +82,11 @@ export function useMyDocCounts(session, saveSession) {
         setMyReviewsCount(data?.my_reviews ?? 0);
       })
       .catch(console.error);
-  }, [session]);
+  }, [session, saveSession]);
 
-  return { myDocsCount, myReviewsCount };
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { myDocsCount, myReviewsCount, refresh };
 }

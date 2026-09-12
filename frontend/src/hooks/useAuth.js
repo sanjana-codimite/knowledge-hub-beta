@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getCurrentUser, getGoogleLoginUrl, logout } from "../api/auth";
 
 const SESSION_KEY = "atlas.session";
@@ -13,11 +13,11 @@ export function useAuth() {
   const [error, setError] = useState("");
 
   // Persist session to localStorage whenever it changes
-  const saveSession = (next) => {
+  const saveSession = useCallback((next) => {
     setSession(next);
     if (next) localStorage.setItem(SESSION_KEY, JSON.stringify(next));
     else localStorage.removeItem(SESSION_KEY);
-  };
+  }, []);
 
   // Load user profile whenever the session changes
   useEffect(() => {

@@ -387,8 +387,9 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
         writeJSONError(w, http.StatusBadRequest, "q parameter is required")
         return
     }
+    projectID := r.URL.Query().Get("project_id")
 
-    docs, err := h.svc.Search(r.Context(), query)
+    docs, err := h.svc.Search(r.Context(), query, projectID)
     if err != nil {
         writeJSONError(w, http.StatusInternalServerError, "search failed: "+err.Error())
         return

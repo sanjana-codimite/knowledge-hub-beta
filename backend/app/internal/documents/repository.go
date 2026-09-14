@@ -25,7 +25,8 @@ type Repository interface {
 	UpdateStatus(ctx context.Context, id string, status types.DocumentStatus) error
 	AssignReviewer(ctx context.Context, docID, reviewerID string) error
     SaveEmbedding(ctx context.Context, docID string, vector []float32) error
-	SearchByVector(ctx context.Context, vector []float32, limit int) ([]types.Document, error)
+    SaveChunks(ctx context.Context, docID string, chunks []types.DocumentChunk) error
+	SearchByVector(ctx context.Context, vector []float32, limit int, projectID ...string) ([]types.Document, error)
 	RemoveReviewer(ctx context.Context, docID string) error
 	CountPublishedByProject(ctx context.Context) (map[string]int, error)
 	CountMyDocs(ctx context.Context, userID string) (int, error)
@@ -195,54 +196,106 @@ func vectorToString(v []float32) string {
 	return b.String()
 }
 
+func (r *postgresRepository) SaveChunks(
+	ctx context.Context,
+	docID string,
+	chunks []types.DocumentChunk,
+) error {
+	if len(chunks) == 0 {
+		return fmt.Errorf("no chunks to save")
+	}
+
+	for i, chunk := range chunks {
+		if len(chunk.Vector) != 1536 {
+			return fmt.Errorf("chunk %d expected 1536-dimensional vector, got %d", i, len(chunk.Vector))
+		}
+	}
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Clean up any old chunks/embeddings for this document if re-approving
+	_, err = tx.Exec(ctx, `DELETE FROM document_embeddings WHERE document_id = $1`, docID)
+	if err != nil {
+		return fmt.Errorf("deleting existing embeddings: %w", err)
+	}
+
+	const insertChunk = `
+		INSERT INTO document_embeddings (document_id, chunk_index, chunk_text, embedding_vector)
+		VALUES ($1, $2, $3, $4::vector)
+	`
+	for _, chunk := range chunks {
+		_, err := tx.Exec(
+			ctx,
+			insertChunk,
+			docID,
+			chunk.Index,
+			chunk.Text,
+			vectorToString(chunk.Vector),
+		)
+		if err != nil {
+			return fmt.Errorf("saving chunk %d: %w", chunk.Index, err)
+		}
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE documents
+		SET status = 'published',
+		    updated_at = now()
+		WHERE id = $1
+	`, docID)
+	if err != nil {
+		return fmt.Errorf("updating document status to published: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
 func (r *postgresRepository) SaveEmbedding(
 	ctx context.Context,
 	docID string,
 	vector []float32,
 ) error {
-
-	if len(vector) != 1536 {
-		return fmt.Errorf(
-			"expected 1536-dimensional vector, got %d",
-			len(vector),
-		)
-	}
-
-	_, err := r.db.Exec(
-		ctx,
-		`INSERT INTO document_embeddings
-			(document_id, embedding_vector)
-		VALUES ($1, $2::vector)`,
-		docID,
-		vectorToString(vector),
-	)
-
-	if err != nil {
-		return fmt.Errorf(
-			"saving embedding: %w",
-			err,
-		)
-	}
-
-	_, err = r.db.Exec(
-		ctx,
-		`UPDATE documents
-		 SET status = 'published',
-		     updated_at = now()
-		 WHERE id = $1`,
-		docID,
-	)
-
-	return err
+	return r.SaveChunks(ctx, docID, []types.DocumentChunk{
+		{
+			Index:  0,
+			Text:   "",
+			Vector: vector,
+		},
+	})
 }
 
 func (r *postgresRepository) SearchByVector(
 	ctx context.Context,
 	vector []float32,
 	limit int,
+	projectID ...string,
 ) ([]types.Document, error) {
+	var projFilter string
+	args := []any{vectorToString(vector), limit}
 
-	const query = `
+	if len(projectID) > 0 && strings.TrimSpace(projectID[0]) != "" {
+		projFilter = " AND d.project_id = $3"
+		args = append(args, projectID[0])
+	}
+
+	query := fmt.Sprintf(`
+		WITH ranked_chunks AS (
+			SELECT
+				de.document_id,
+				de.chunk_text,
+				de.embedding_vector <=> $1::vector AS distance,
+				ROW_NUMBER() OVER (
+					PARTITION BY de.document_id
+					ORDER BY de.embedding_vector <=> $1::vector ASC
+				) AS rn
+			FROM document_embeddings de
+			JOIN documents d ON d.id = de.document_id
+			WHERE d.status = 'published'%s
+		)
 		SELECT
 			d.id,
 			d.title,
@@ -254,21 +307,38 @@ func (r *postgresRepository) SearchByVector(
 			d.uploaded_by,
 			COALESCE(d.reviewer_id::text, ''),
 			d.created_at,
-			d.updated_at
-		FROM document_embeddings de
-		JOIN documents d
-			ON d.id = de.document_id
-		WHERE d.status = 'published'
-		ORDER BY de.embedding_vector <=> $1::vector
+			d.updated_at,
+			rc.chunk_text
+		FROM ranked_chunks rc
+		JOIN documents d ON d.id = rc.document_id
+		WHERE rc.rn = 1
+		ORDER BY rc.distance ASC
 		LIMIT $2
-	`
+	`, projFilter)
 
-	return r.listDocs(
-		ctx,
-		query,
-		vectorToString(vector),
-		limit,
-	)
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("documents: search vector query: %w", err)
+	}
+	defer rows.Close()
+
+	var docs []types.Document
+	for rows.Next() {
+		var d types.Document
+		var chunkSnippet string
+		if err := rows.Scan(
+			&d.ID, &d.Title, &d.Filename, &d.MimeType, &d.StoragePath,
+			&d.Status, &d.ProjectID, &d.UploadedBy, &d.ReviewerID,
+			&d.CreatedAt, &d.UpdatedAt,
+			&chunkSnippet,
+		); err != nil {
+			return nil, fmt.Errorf("documents: search scan: %w", err)
+		}
+		d.Excerpt = strings.TrimSpace(chunkSnippet)
+		docs = append(docs, d)
+	}
+
+	return docs, rows.Err()
 }
 
 // ── Tags ─────────────────────────────────────────────────────────────────────

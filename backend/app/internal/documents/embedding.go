@@ -1,9 +1,14 @@
 package documents
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"strings"
+
+	"github.com/codimite-learning/knowledge-hub/internal/pkg/types"
+	"github.com/ledongthuc/pdf"
 	"google.golang.org/genai"
 )
 
@@ -29,69 +34,68 @@ func newGeminiClient(ctx context.Context, apiKey string) (*geminiClient, error) 
 	}, nil
 }
 
-func (g *geminiClient) getEmbedding(
+func (g *geminiClient) getChunkEmbeddings(
 	ctx context.Context,
-	title string,
-	text string,
-) ([]float32, error) {
-
-	if text == "" {
-		return nil, fmt.Errorf("embedding: document text is empty")
+	docTitle string,
+	chunks []types.DocumentChunk,
+) ([]types.DocumentChunk, error) {
+	if len(chunks) == 0 {
+		return nil, fmt.Errorf("embedding: no chunks provided")
 	}
 
-	// Prevent extremely large input.
-	// Gemini Embedding 2 supports up to 8192 input tokens.
-	if len(text) > 30000 {
-		text = text[:30000]
-	}
+	resultChunks := make([]types.DocumentChunk, len(chunks))
+	copy(resultChunks, chunks)
+	totalChunks := len(chunks)
 
-	documentText := fmt.Sprintf(
-		"title: %s | text: %s",
-		title,
-		text,
-	)
+	for i := range resultChunks {
+		chunkText := strings.TrimSpace(resultChunks[i].Text)
+		if chunkText == "" {
+			continue
+		}
 
-	contents := []*genai.Content{
-		genai.NewContentFromText(
-			documentText,
-			genai.RoleUser,
-		),
-	}
-
-	result, err := g.client.Models.EmbedContent(
-		ctx,
-		geminiModel,
-		contents,
-		&genai.EmbedContentConfig{
-			OutputDimensionality: genai.Ptr(int32(geminiEmbeddingSize)),
-		},
-	)
-
-	if err != nil {
-		return nil, fmt.Errorf(
-			"embedding: generating document embedding: %w",
-			err,
+		prompt := fmt.Sprintf(
+			"title: %s | chunk: %d of %d | content: %s",
+			docTitle,
+			i+1,
+			totalChunks,
+			chunkText,
 		)
-	}
 
-	if len(result.Embeddings) == 0 {
-		return nil, fmt.Errorf(
-			"embedding: Gemini returned no embeddings",
+		contents := []*genai.Content{
+			genai.NewContentFromText(
+				prompt,
+				genai.RoleUser,
+			),
+		}
+
+		result, err := g.client.Models.EmbedContent(
+			ctx,
+			geminiModel,
+			contents,
+			&genai.EmbedContentConfig{
+				OutputDimensionality: genai.Ptr(int32(geminiEmbeddingSize)),
+			},
 		)
+		if err != nil {
+			return nil, fmt.Errorf("embedding: generating embedding for chunk %d: %w", i, err)
+		}
+
+		if len(result.Embeddings) == 0 {
+			return nil, fmt.Errorf("embedding: Gemini returned no embedding for chunk %d", i)
+		}
+
+		embedding := result.Embeddings[0].Values
+		if len(embedding) != geminiEmbeddingSize {
+			return nil, fmt.Errorf("embedding: expected %d dimensions, got %d for chunk %d", geminiEmbeddingSize, len(embedding), i)
+		}
+
+		resultChunks[i].Vector = embedding
 	}
 
-	embedding := result.Embeddings[0].Values
-
-	if len(embedding) != geminiEmbeddingSize {
-		return nil, fmt.Errorf(
-			"embedding: expected %d dimensions, got %d",
-			geminiEmbeddingSize,
-			len(embedding),
-		)
-	}
-
-	return embedding, nil
+	return resultChunks, nil
 }
+
+
 
 func (g *geminiClient) getQueryEmbedding(
 	ctx context.Context,
@@ -169,15 +173,7 @@ func extractText(path, mimeType string) (string, error) {
 		return string(data), nil
 
 	case "application/pdf":
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", fmt.Errorf(
-				"embedding: reading PDF file: %w",
-				err,
-			)
-		}
-
-		return extractPDFText(data), nil
+		return extractPDFText(path)
 
 	default:
 		return "", fmt.Errorf(
@@ -187,35 +183,23 @@ func extractText(path, mimeType string) (string, error) {
 	}
 }
 
+func extractPDFText(path string) (string, error) {
+	f, r, err := pdf.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("embedding: opening PDF file: %w", err)
+	}
+	defer f.Close()
 
-func extractPDFText(data []byte) string {
-	text := string(data)
-
-	var result []byte
-	inText := false
-
-	for i := 0; i < len(text)-1; i++ {
-
-		if text[i] == 'B' && text[i+1] == 'T' {
-			inText = true
-			i++
-			continue
-		}
-
-		if text[i] == 'E' && text[i+1] == 'T' {
-			inText = false
-			result = append(result, ' ')
-			i++
-			continue
-		}
-
-		if inText &&
-			text[i] >= 32 &&
-			text[i] < 127 {
-
-			result = append(result, text[i])
-		}
+	var buf bytes.Buffer
+	b, err := r.GetPlainText()
+	if err != nil {
+		return "", fmt.Errorf("embedding: extracting PDF plain text: %w", err)
 	}
 
-	return string(result)
+	_, err = buf.ReadFrom(b)
+	if err != nil {
+		return "", fmt.Errorf("embedding: reading PDF text buffer: %w", err)
+	}
+
+	return buf.String(), nil
 }

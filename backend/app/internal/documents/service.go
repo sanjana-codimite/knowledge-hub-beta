@@ -249,35 +249,43 @@ func (s *Service) Approve(
 		doc.StoragePath,
 		doc.MimeType,
 	)
-	if err != nil {
-		return fmt.Errorf(
-			"documents: extracting text: %w",
-			err,
-		)
+	if err != nil || strings.TrimSpace(text) == "" || !isTextQualitySufficient(text) {
+		text = fmt.Sprintf("Title: %s | Filename: %s", doc.Title, doc.Filename)
 	}
 
-	// 2. Generate Gemini embedding
-	vector, err := s.gemini.getEmbedding(
+	// 2. Divide document into size-aware chunks
+	chunks := chunkDocument(text)
+	if len(chunks) == 0 {
+		chunks = []types.DocumentChunk{
+			{
+				Index: 0,
+				Text:  strings.TrimSpace(text),
+			},
+		}
+	}
+
+	// 3. Generate Gemini embeddings for each chunk
+	embeddedChunks, err := s.gemini.getChunkEmbeddings(
 		ctx,
 		doc.Title,
-		text,
+		chunks,
 	)
 	if err != nil {
 		return fmt.Errorf(
-			"documents: generating embedding: %w",
+			"documents: generating chunk embeddings: %w",
 			err,
 		)
 	}
 
-	// 3. Save embedding + publish document
-	err = s.repo.SaveEmbedding(
+	// 4. Save chunk embeddings + publish document
+	err = s.repo.SaveChunks(
 		ctx,
 		docID,
-		vector,
+		embeddedChunks,
 	)
 	if err != nil {
 		return fmt.Errorf(
-			"documents: saving embedding: %w",
+			"documents: saving chunk embeddings: %w",
 			err,
 		)
 	}
@@ -305,6 +313,7 @@ func (s *Service) Reject(ctx context.Context, docID, reviewerID string) error {
 func (s *Service) Search(
 	ctx context.Context,
 	query string,
+	projectID ...string,
 ) ([]types.Document, error) {
 
 	query = strings.TrimSpace(query)
@@ -322,7 +331,7 @@ func (s *Service) Search(
 		)
 	}
 
-	docs, err := s.repo.SearchByVector(ctx, vector, 5)
+	docs, err := s.repo.SearchByVector(ctx, vector, 10, projectID...)
 	if err != nil {
 		return nil, err
 	}

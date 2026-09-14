@@ -39,10 +39,10 @@ function App() {
   const [panel,           setPanel]          = useState(null);
   const [showTagManager,  setShowTagManager] = useState(false);
   const { counts, total } = useDocumentCounts(session, saveSession);
-  const {
+  const { 
     myDocsCount,
     myReviewsCount,
-    refresh: refreshMyDocCounts,
+    refresh:refreshMyDocCounts,
   } = useMyDocCounts(session, saveSession);
   // My Docs — only fetches when "mydocs" view is active
   const {

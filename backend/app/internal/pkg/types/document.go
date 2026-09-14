@@ -27,6 +27,7 @@ type Document struct {
     ProjectID       string         `json:"project_id"`
     UploadedBy      string         `json:"uploaded_by"`
     ReviewerID      string         `json:"reviewer_id,omitempty"`
+    Excerpt         string         `json:"excerpt,omitempty"`
     Tags            []Tag          `json:"tags,omitempty"`
     CreatedAt       time.Time      `json:"created_at"`
     UpdatedAt       time.Time      `json:"updated_at"`

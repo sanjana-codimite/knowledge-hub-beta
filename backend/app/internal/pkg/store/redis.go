@@ -13,6 +13,10 @@ type RedisConfig struct {
     DB       int
 }
 
+// Redis = the actual server/data store
+// Redis client = Go's tool for communicating with Redis
+// RedisStore = your project's wrapper that holds that client.
+
 type RedisStore struct {
     Client *redis.Client  // exported so authz package can use it
 }

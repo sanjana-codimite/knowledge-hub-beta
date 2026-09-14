@@ -1,12 +1,15 @@
 module github.com/codimite-learning/knowledge-hub
 
-go 1.24
+go 1.24.1
+
+toolchain go1.24.13
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/joho/godotenv v1.5.1
+	github.com/ledongthuc/pdf v0.0.0-20260907135840-6c8c28e0e8a0
 	github.com/redis/go-redis/v9 v9.6.1
 	golang.org/x/oauth2 v0.24.0
 	google.golang.org/genai v1.71.0

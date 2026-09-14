@@ -27,9 +27,8 @@ func (a *App) Router() *http.ServeMux {
 		}
 	}))
 
-
 	mux.HandleFunc("/web/documents/upload", a.authMW.RequireAuth(a.docHandler.Upload))
-	mux.HandleFunc("/web/documents/mine",   a.authMW.RequireAuth(a.docHandler.ListMine))
+	mux.HandleFunc("/web/documents/mine", a.authMW.RequireAuth(a.docHandler.ListMine))
 	mux.HandleFunc("/web/documents/review", a.authMW.RequireAuth(a.docHandler.ListForReview))
 	mux.HandleFunc("/web/documents/search", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -39,20 +38,20 @@ func (a *App) Router() *http.ServeMux {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}))
 	mux.HandleFunc("/web/documents/published", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
-    if r.Method == http.MethodGet {
-        a.docHandler.ListPublished(w, r)
-        return
-    }
-    http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-}))
+		if r.Method == http.MethodGet {
+			a.docHandler.ListPublished(w, r)
+			return
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}))
 
-mux.HandleFunc("/web/documents/counts", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
-    if r.Method == http.MethodGet {
-        a.docHandler.Counts(w, r)
-        return
-    }
-    http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-}))
+	mux.HandleFunc("/web/documents/counts", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			a.docHandler.Counts(w, r)
+			return
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}))
 
 	mux.HandleFunc("/web/documents/my-counts", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -83,12 +82,11 @@ mux.HandleFunc("/web/documents/counts", a.authMW.RequireAuth(func(w http.Respons
 		case strings.HasSuffix(path, "/file") && r.Method == http.MethodGet:
 			a.docHandler.GetFile(w, r)
 		case strings.HasSuffix(path, "/reviewer") && r.Method == http.MethodDelete:
-  			a.docHandler.RemoveReviewer(w, r)	
+			a.docHandler.RemoveReviewer(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	}))
-
 
 	mux.HandleFunc("/web/tags", a.authMW.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -108,7 +106,7 @@ mux.HandleFunc("/web/documents/counts", a.authMW.RequireAuth(func(w http.Respons
 		}
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}))
-	
+
 	mux.Handle("/", spaHandler(frontendFS))
 
 	return mux

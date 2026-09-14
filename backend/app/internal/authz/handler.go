@@ -136,7 +136,7 @@ func (h *Handler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
 
 
 // POST /web/auth/refresh
-func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
+func (h *Handler)  Refresh(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		RefreshToken string `json:"refresh_token"`
 	}

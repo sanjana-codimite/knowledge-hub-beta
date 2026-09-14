@@ -2,6 +2,21 @@ import { useEffect, useState } from "react";
 import { Status } from "./Status";
 import { getDocumentFileURL } from "../api/documents";
 
+function isCleanReadableText(text) {
+  if (!text || typeof text !== "string") return false;
+  const trimmed = text.trim();
+  if (trimmed.length < 5) return false;
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return false;
+  // Binary streams have very few or no spaces
+  const avgWordLen = trimmed.length / words.length;
+  if (avgWordLen > 25) return false;
+  // Check for high density of binary/stream noise symbols
+  const noiseCount = (trimmed.match(/[\^~%\\<>|`$@*;{}]/g) || []).length;
+  if (noiseCount / trimmed.length > 0.08) return false;
+  return true;
+}
+
 // DocumentCard renders a single document row in the search results list.
 export function DocumentCard({ doc, onClick, session, onSession }) {
   const title = doc.title || doc.filename || "Untitled document";
@@ -9,7 +24,9 @@ export function DocumentCard({ doc, onClick, session, onSession }) {
   const status = formatStatus(doc.status);
   const project = doc.project || doc.project_id || "Unassigned";
   const meta = doc.meta || formatUpdatedAt(doc.updated_at);
-  const excerpt = doc.excerpt || doc.filename || "No description available.";
+  const excerpt = isCleanReadableText(doc.excerpt)
+    ? doc.excerpt
+    : (doc.description || doc.filename || "No description available.");
   const [previewURL, setPreviewURL] = useState(null);
   const [previewError, setPreviewError] = useState("");
 
